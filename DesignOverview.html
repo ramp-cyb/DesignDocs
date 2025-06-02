@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Design Overview - SimplCommerce Microservices</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <a href="MigrationAnalysis.html">Analysis</a>
+        <a href="MigrationPlan.html">Migration Plan</a>
+        <a href="DesignOverview.html">Design Overview</a>
+        <a href="ExecutionPlan.html">Execution Plan</a>
+        <a href="DependencyGraph.html">Dependency Graph</a>
+        <a href="MigrationExamples.html">Migration Examples</a>
+        <a href="StranglerTDD.html">Strangler & TDD Guide</a>
+    </nav>
+    <div class="container">
+        <h1>Detailed Design</h1>
+        <h2>Overall Migration Challenges</h2>
+        <table class="table">
+            <tr><th>Issue</th><th>Real Example</th><th>Solution</th><th>Reasoning</th></tr>
+            <tr>
+                <td>Cross-Module Foreign Keys</td>
+                <td>
+                    OrderItem.ProductId references Catalog_Product.Id directly in DB<br>
+                    <b>DB Example (Before):</b>
+                    <pre><code>ALTER TABLE OrderItem ADD CONSTRAINT FK_OrderItem_Product FOREIGN KEY (ProductId) REFERENCES Catalog_Product(Id);</code></pre>
+                </td>
+                <td>
+                    Remove FKs, store only IDs, resolve via API/event<br>
+                    <b>DB Example (After):</b>
+                    <pre><code>-- No foreign key constraint; ProductId is just a value
+-- Product info is fetched via API or event, not join
+SELECT * FROM OrderItem WHERE ProductId = @id;</code></pre>
+                </td>
+                <td>Enables independent schema evolution and scaling; avoids distributed joins</td>
+            </tr>
+            <tr>
+                <td>Shared DbContext</td>
+                <td>
+                    All modules use SimplDbContext, causing tight coupling and migration pain<br>
+                    <b>Code Example (Before):</b>
+                    <pre><code>// Used everywhere
+public class SimplDbContext : DbContext {
+    public DbSet<Product> Products { get; set; }
+    public DbSet<Order> Orders { get; set; }
+    // ... all entities
+}</code></pre>
+                </td>
+                <td>
+                    Split into service-specific DbContexts and databases<br>
+                    <b>Code Example (After):</b>
+                    <pre><code>// In Catalog Service
+public class CatalogDbContext : DbContext {
+    public DbSet<Product> Products { get; set; }
+}
+// In Order Service
+public class OrderDbContext : DbContext {
+    public DbSet<Order> Orders { get; set; }
+}</code></pre>
+                </td>
+                <td>Each service owns its data, enabling true autonomy and isolation</td>
+            </tr>
+            <tr>
+                <td>Tightly Coupled Services</td>
+                <td>OrderService directly calls ProductService, UserService, etc.</td>
+                <td>Replace with HTTP APIs or asynchronous events</td>
+                <td>Reduces coupling, allows independent deployment and scaling</td>
+            </tr>
+            <tr>
+                <td>Shared Static Files & Resources</td>
+                <td>Modules share wwwroot for images, scripts, etc.</td>
+                <td>Move to dedicated static file services or CDN</td>
+                <td>Prevents accidental overwrites and enables independent updates</td>
+            </tr>
+            <tr>
+                <td>Global Configuration & Settings</td>
+                <td>App settings and feature flags are global, not per-service</td>
+                <td>Move to service-specific config, use distributed config store if needed</td>
+                <td>Enables per-service tuning and secure secrets management</td>
+            </tr>
+            <tr>
+                <td>Authentication & Authorization</td>
+                <td>Centralized in Core, but all modules check user roles/claims</td>
+                <td>Centralize auth (OAuth2/JWT), propagate tokens to all services</td>
+                <td>Ensures consistent security and single sign-on</td>
+            </tr>
+            <tr>
+                <td>Reporting & Cross-Service Queries</td>
+                <td>Reports join Orders, Products, Payments, etc. in DB</td>
+                <td>Use reporting/aggregation service or ETL pipeline</td>
+                <td>Prevents distributed joins, enables scalable reporting</td>
+            </tr>
+            <tr>
+                <td>Eventual Consistency</td>
+                <td>Stock updates, order status, etc. must be eventually consistent</td>
+                <td>Use events, sagas, and compensating actions</td>
+                <td>Ensures reliability without distributed transactions</td>
+            </tr>
+            <tr>
+                <td>Shared Libraries & External Packages</td>
+                <td>All modules depend on SimplCommerce.Infrastructure, MediatR, cloudscribe.Pagination, etc.</td>
+                <td>Refactor shared code into NuGet packages, document all dependencies</td>
+                <td>Enables versioning, reuse, and independent upgrades</td>
+            </tr>
+        </table>
+
+        <h2>Microservice ER Table Structures</h2>
+        <div class="note">Key entities and fields for each microservice (simplified for clarity):</div>
+        <table class="table">
+            <tr><th>Microservice</th><th>Entity</th><th>Fields</th></tr>
+            <tr><td rowspan="6">Catalog</td><td>Product</td><td>Id, Name, Slug, Description, BrandId, CategoryId, Price, IsPublished, IsDeleted</td></tr>
+            <tr><td>Category</td><td>Id, Name, Slug, ParentId, Description</td></tr>
+            <tr><td>Brand</td><td>Id, Name, Slug, Description</td></tr>
+            <tr><td>ProductAttribute</td><td>Id, Name, GroupId</td></tr>
+            <tr><td>ProductTemplate</td><td>Id, Name</td></tr>
+            <tr><td>ProductCategory</td><td>ProductId, CategoryId</td></tr>
+            <tr><td rowspan="3">Orders</td><td>Order</td><td>Id, UserId, OrderDate, Status, Total, PaymentId</td></tr>
+            <tr><td>OrderItem</td><td>Id, OrderId, ProductId, Quantity, Price</td></tr>
+            <tr><td>OrderHistory</td><td>Id, OrderId, Status, ChangedOn</td></tr>
+            <tr><td rowspan="3">Customers/Core</td><td>User</td><td>Id, Email, PasswordHash, Roles, VendorId</td></tr>
+            <tr><td>Address</td><td>Id, UserId, Line1, City, State, Country, Zip</td></tr>
+            <tr><td>Vendor</td><td>Id, Name, UserId, IsActive</td></tr>
+            <tr><td rowspan="2">Inventory</td><td>Stock</td><td>Id, ProductId, WarehouseId, Quantity</td></tr>
+            <tr><td>Warehouse</td><td>Id, Name, Address</td></tr>
+            <tr><td rowspan="3">Pricing</td><td>CartRule</td><td>Id, Name, DiscountAmount, StartDate, EndDate</td></tr>
+            <tr><td>Coupon</td><td>Id, Code, DiscountAmount, ExpiryDate</td></tr>
+            <tr><td>CartRuleProduct</td><td>CartRuleId, ProductId</td></tr>
+            <tr><td rowspan="2">Shipping</td><td>Shipment</td><td>Id, OrderId, ShippedDate, Status</td></tr>
+            <tr><td>ShippingMethod</td><td>Id, Name, Description</td></tr>
+            <tr><td rowspan="2">WishList</td><td>WishList</td><td>Id, UserId, CreatedOn</td></tr>
+            <tr><td>WishListItem</td><td>Id, WishListId, ProductId, AddedOn</td></tr>
+            <tr><td rowspan="4">Content</td><td>Page</td><td>Id, Title, Body, AuthorId, CreatedOn</td></tr>
+            <tr><td>News</td><td>Id, Title, Body, PublishedOn</td></tr>
+            <tr><td>Comment</td><td>Id, EntityId, EntityTypeId, UserId, Body, CreatedOn</td></tr>
+            <tr><td>Review</td><td>Id, ProductId, UserId, Rating, Body, CreatedOn</td></tr>
+            <tr><td>Payments</td><td>Payment</td><td>Id, OrderId, Amount, Status, PaidOn</td></tr>
+        </table>
+
+        <h2>Microservice Code Structure</h2>
+        <div class="note">Typical folder and class layout for each microservice:</div>
+        <table class="table">
+            <tr><th>Microservice</th><th>Key Folders/Classes</th></tr>
+            <tr><td>Catalog</td><td>Models/, Services/, Areas/Catalog/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>Orders</td><td>Models/, Services/, Areas/Orders/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>Customers/Core</td><td>Models/, Services/, Areas/Core/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>Inventory</td><td>Models/, Services/, Areas/Inventory/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>Pricing</td><td>Models/, Services/, Areas/Pricing/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>Shipping</td><td>Models/, Services/, Areas/Shipping/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>WishList</td><td>Models/, Services/, Areas/WishList/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>Content</td><td>Models/, Services/, Areas/Cms/Controllers/, Data/, ViewModels/</td></tr>
+            <tr><td>Payments</td><td>Models/, Services/, Areas/Payments/Controllers/, Data/, ViewModels/</td></tr>
+        </table>
+
+        <h2>Shared Libraries & External Package Dependencies</h2>
+        <div class="note">Key shared libraries and external NuGet packages used across modules:</div>
+        <table class="table">
+            <tr><th>Library/Package</th><th>Purpose/Usage</th></tr>
+            <tr><td>SimplCommerce.Infrastructure</td><td>Shared base classes, interfaces, repository pattern, utilities</td></tr>
+            <tr><td>MediatR</td><td>Domain events, decoupled event handling. <b>Event Management:</b> All major business events (e.g., ProductUpdated, OrderCreated) are published and handled via MediatR, enabling loose coupling and extensibility. <b>Enhancement:</b> Define a clear event catalog, version events, and document event flows for each service.</td></tr>
+            <tr><td>EntityFrameworkCore</td><td>ORM for data access. <b>Enhancement:</b> Use service-specific DbContexts and optimize queries for performance and scalability.</td></tr>
+            <tr><td>cloudscribe.Pagination</td><td>Pagination utilities for admin UI</td></tr>
+            <tr><td>Microsoft.AspNetCore.*</td><td>Web API, MVC, Identity, DI, etc.</td></tr>
+            <tr><td>Newtonsoft.Json</td><td>JSON serialization/deserialization</td></tr>
+            <tr><td>xUnit, Moq</td><td>Testing frameworks</td></tr>
+            <tr><td>coverlet.collector</td><td>Code coverage for tests</td></tr>
+        </table>
+
+        <h2>Further Enhancements & Recommendations</h2>
+        <ul>
+            <li><b>Service Granularity (Iterative Refinement):</b> Continuously review and evolve service boundaries as the system matures. Start with business-aligned domains, but be prepared to split or merge services based on real-world usage, scaling needs, and team feedback. Use domain-driven design (DDD) and regular architecture reviews to validate boundaries.</li>
+            <li><b>Event Management & Event-Driven Architecture:</b> Define a comprehensive event catalog for all business and integration events. Document event payloads, producers, and consumers. Implement event versioning, idempotency, and monitoring. Establish event governance (naming, ownership, lifecycle) and use distributed tracing to track event flows and diagnose issues. Consider an event bus or message broker for decoupling and reliability.</li>
+            <li><b>Performance & Resilience:</b> Profile and monitor critical paths using distributed tracing and metrics. Apply caching, bulkheads, and fallback policies where appropriate. Use circuit breakers and retries for inter-service calls. Continuously test for failure scenarios (e.g., chaos engineering) and optimize for both latency and throughput. Monitor error rates and set up automated alerts for anomalies.</li>
+            <li><b>Documentation as a Living Roadmap:</b> Treat this documentation as a living artifact. Update it with every major architectural or service change. Use it for onboarding, technical decision-making, and as a reference for migration progress. Encourage contributions from all team members to keep it relevant and actionable.</li>
+        </ul>
+        <div class="note"><b>Summary:</b> By embracing iterative refinement of service granularity, establishing robust event-driven practices, and proactively addressing performance and resilience, the team is well-equipped for a successful migration. This documentation is designed as a living, actionable roadmap—use it to guide, validate, and accelerate your microservices journey.</div>
+        <h2>Microservice Designs</h2>
+        <h3>Catalog Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Manages all product-related data and logic, including categories, brands, attributes, and templates. Central to e-commerce operations.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for products, categories, brands, attributes. Publishes events on product changes. Exposes REST APIs for other services.</li>
+            <li><b>Data Model:</b> Product, Category, Brand, Attribute, Template. No foreign keys to other services; only IDs.</li>
+            <li><b>Integration Points:</b> Inventory (stock updates), Pricing (discounts), Reviews, Core (Vendor/User info).</li>
+            <li><b>Migration Notes:</b> Extract all Catalog code and DB tables. Refactor cross-module calls to use Catalog API/events. Validate with integration and regression tests.</li>
+            <li><b>Problems & Solutions:</b> Data duplication (e.g., vendor info) is handled by storing only IDs and using events for updates. API Gateway routes requests to the correct service.</li>
+            <li><b>Sample API:</b> <code>GET /api/products/{id}</code>, <code>POST /api/products</code></li>
+        </ul>
+        <h3>Order Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Handles order placement, order items, status tracking, and payment references. Critical for revenue and fulfillment.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for orders and items, status updates, payment tracking. Consumes Catalog and Customer APIs/events.</li>
+            <li><b>Data Model:</b> Order, OrderItem, PaymentRef. References ProductId and UserId (no FKs).</li>
+            <li><b>Integration Points:</b> Catalog (product info), Payments, Shipping, Customers.</li>
+            <li><b>Migration Notes:</b> Extract Orders code and DB tables. Refactor to use APIs/events for product and user data. Implement sagas for distributed transactions.</li>
+            <li><b>Problems & Solutions:</b> Cross-service data is handled by storing IDs and using sagas for transaction management. Use events for order lifecycle changes.</li>
+            <li><b>Sample API:</b> <code>POST /api/orders</code>, <code>GET /api/orders/{id}</code></li>
+        </ul>
+        <h3>Customer Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Manages users, authentication, addresses, and vendors. Foundation for identity and access management.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for users, addresses, vendors. Authentication endpoints. Publishes user events.</li>
+            <li><b>Data Model:</b> User, Address, Vendor. No FKs to other services.</li>
+            <li><b>Integration Points:</b> Orders, WishList, Content, Payments.</li>
+            <li><b>Migration Notes:</b> Extract Core code and DB tables. Centralize authentication (OAuth2/JWT). Refactor all services to use tokens and user APIs.</li>
+            <li><b>Problems & Solutions:</b> Use a central auth service and propagate tokens. Store only UserId in other services.</li>
+            <li><b>Sample API:</b> <code>POST /api/users</code>, <code>POST /api/auth/login</code></li>
+        </ul>
+        <h3>Inventory Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Manages stock levels, warehouses, and stock movements. Ensures product availability.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for stock and warehouses. Publishes stock change events. Consumes product and order events.</li>
+            <li><b>Data Model:</b> Stock, Warehouse. References ProductId (no FKs).</li>
+            <li><b>Integration Points:</b> Catalog (product info), Orders (order fulfillment).</li>
+            <li><b>Migration Notes:</b> Extract Inventory code and DB tables. Refactor to use APIs/events for product and order data.</li>
+            <li><b>Problems & Solutions:</b> Use events for stock updates. Store only ProductId references.</li>
+            <li><b>Sample API:</b> <code>GET /api/stocks/{id}</code>, <code>POST /api/warehouses</code></li>
+        </ul>
+        <h3>Pricing Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Manages cart rules, coupons, and discounts. Drives promotional logic.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for cart rules, coupons. Publishes discount events. Consumes product and order events.</li>
+            <li><b>Data Model:</b> CartRule, Coupon, CartRuleProduct. References ProductId (no FKs).</li>
+            <li><b>Integration Points:</b> Catalog (product info), Orders (cart/checkout).</li>
+            <li><b>Migration Notes:</b> Extract Pricing code and DB tables. Refactor to use APIs/events for product and order data.</li>
+            <li><b>Problems & Solutions:</b> Use events for price changes. Store only ProductId references.</li>
+            <li><b>Sample API:</b> <code>POST /api/coupons</code>, <code>GET /api/cart-rules</code></li>
+        </ul>
+        <h3>Shipping Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Handles shipment creation, tracking, and shipping methods. Key for fulfillment.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for shipments and shipping methods. Publishes shipment events. Consumes order and inventory events.</li>
+            <li><b>Data Model:</b> Shipment, ShippingMethod. References OrderId (no FKs).</li>
+            <li><b>Integration Points:</b> Orders (fulfillment), Inventory (stock deduction).</li>
+            <li><b>Migration Notes:</b> Extract Shipping code and DB tables. Refactor to use APIs/events for order and inventory data.</li>
+            <li><b>Problems & Solutions:</b> Use events for shipment updates. Store only OrderId references.</li>
+            <li><b>Sample API:</b> <code>POST /api/shipments</code>, <code>GET /api/shipping-methods</code></li>
+        </ul>
+        <h3>WishList Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Manages user wish lists and items. Enhances user experience and engagement.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for wish lists and items. Publishes wish list events. Consumes product and user events.</li>
+            <li><b>Data Model:</b> WishList, WishListItem. References ProductId and UserId (no FKs).</li>
+            <li><b>Integration Points:</b> Catalog (product info), Customers (user info).</li>
+            <li><b>Migration Notes:</b> Extract WishList code and DB tables. Refactor to use APIs/events for product and user data.</li>
+            <li><b>Problems & Solutions:</b> Use events for wish list changes. Store only ProductId and UserId references.</li>
+            <li><b>Sample API:</b> <code>POST /api/wishlists</code>, <code>GET /api/wishlists/{userId}</code></li>
+        </ul>
+        <h3>Content Management Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Manages pages, news, comments, and reviews. Supports content-driven marketing and engagement.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for pages, news, comments, reviews. Publishes content events. Consumes user and product events.</li>
+            <li><b>Data Model:</b> Page, News, Comment, Review. References UserId and ProductId (no FKs).</li>
+            <li><b>Integration Points:</b> Customers (user info), Catalog (product info).</li>
+            <li><b>Migration Notes:</b> Extract Content code and DB tables. Refactor to use APIs/events for user and product data.</li>
+            <li><b>Problems & Solutions:</b> Use events for content updates. Store only UserId and ProductId references.</li>
+            <li><b>Sample API:</b> <code>POST /api/pages</code>, <code>GET /api/news</code></li>
+        </ul>
+        <h3>Payments Service</h3>
+        <ul>
+            <li><b>Business Context:</b> Handles payment processing and tracking. Critical for revenue collection.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for payments. Publishes payment events. Consumes order events.</li>
+            <li><b>Data Model:</b> Payment. References OrderId (no FKs).</li>
+            <li><b>Integration Points:</b> Orders (payment tracking).</li>
+            <li><b>Migration Notes:</b> Extract Payments code and DB tables. Refactor to use APIs/events for order data.</li>
+            <li><b>Problems & Solutions:</b> Use events for payment updates. Store only OrderId references.</li>
+            <li><b>Sample API:</b> <code>POST /api/payments</code>, <code>GET /api/payments/{orderId}</code></li>
+        </ul>
+        <h3>Other Services (ActivityLog, Notifications, Localization)</h3>
+        <ul>
+            <li><b>Business Context:</b> Cross-cutting concerns for logging, notifications, and localization.</li>
+            <li><b>Technical Responsibilities:</b> CRUD for logs, notifications, localization data. Publishes and consumes events as needed.</li>
+            <li><b>Data Model:</b> ActivityLog, Notification, Localization. No FKs to other services.</li>
+            <li><b>Integration Points:</b> All services as needed.</li>
+            <li><b>Migration Notes:</b> Extract code and DB tables. Refactor to use events for integration.</li>
+            <li><b>Problems & Solutions:</b> Use events for cross-service communication. Store only IDs as references.</li>
+            <li><b>Sample API:</b> <code>POST /api/activitylogs</code>, <code>GET /api/notifications</code></li>
+        </ul>
+    </div>
+</body>
+</html>

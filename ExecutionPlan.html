@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Execution Plan - SimplCommerce Microservices</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <a href="MigrationAnalysis.html">Analysis</a>
+        <a href="MigrationPlan.html">Migration Plan</a>
+        <a href="DesignOverview.html">Design Overview</a>
+        <a href="ExecutionPlan.html">Execution Plan</a>
+        <a href="DependencyGraph.html">Dependency Graph</a>
+        <a href="MigrationExamples.html">Migration Examples</a>
+        <a href="StranglerTDD.html">Strangler & TDD Guide</a>
+    </nav>
+    <div class="container">
+        <h1>Execution Plan</h1>
+        <h2>Task List & Detailed Steps</h2>
+        <ol>
+            <li><b>Extract Catalog Service:</b> 
+                <ul>
+                    <li>Isolate Catalog code, models, and DB tables. Move to a new service repository.</li>
+                    <li>Implement REST APIs for product, category, brand, and attribute management.</li>
+                    <li>Publish ProductChanged events for integration with Inventory, Pricing, etc.</li>
+                    <li><i>Deliverables:</i> Catalog service codebase, API docs, event schemas, migration scripts.</li>
+                    <li><i>Acceptance:</i> All product-related features work via the new service, validated by integration tests.</li>
+                </ul>
+            </li>
+            <li><b>Refactor Monolith to Use Catalog API:</b>
+                <ul>
+                    <li>Replace direct DB/model access with HTTP API calls to Catalog service.</li>
+                    <li>Update dependency injection and service registration.</li>
+                    <li>Monitor for regressions and performance issues.</li>
+                </ul>
+            </li>
+            <li><b>Extract Order Service:</b>
+                <ul>
+                    <li>Isolate Orders code, models, and DB tables. Move to a new service repository.</li>
+                    <li>Implement REST APIs for order management and status updates.</li>
+                    <li>Publish OrderCreated/OrderStatusChanged events for integration with Payments, Shipping, etc.</li>
+                    <li>Refactor monolith to use Order API for all order operations.</li>
+                </ul>
+            </li>
+            <li><b>Extract Customer Service & Refactor Authentication:</b>
+                <ul>
+                    <li>Isolate Core (user, address, vendor) code and DB tables. Move to a new service repository.</li>
+                    <li>Implement authentication endpoints (OAuth2/JWT), user CRUD APIs, and event publishing.</li>
+                    <li>Update all services to use tokens and user APIs for authentication/authorization.</li>
+                </ul>
+            </li>
+            <li><b>Extract Inventory, Pricing, Shipping, WishList, Content, Payments, etc.:</b>
+                <ul>
+                    <li>Repeat the extraction process for each remaining module. For each, implement APIs, events, and refactor integrations.</li>
+                    <li>Document all API contracts and event schemas.</li>
+                </ul>
+            </li>
+            <li><b>Implement Event-Driven Communication & Data Sync:</b>
+                <ul>
+                    <li>Set up a message bus (e.g., RabbitMQ, Kafka) for asynchronous events.</li>
+                    <li>Define and document all event types and payloads.</li>
+                    <li>Implement event consumers and handlers in each service.</li>
+                </ul>
+            </li>
+            <li><b>Refactor Reporting & Cross-Service Queries:</b>
+                <ul>
+                    <li>Implement a reporting/aggregation service or ETL pipeline to collect data from all microservices.</li>
+                    <li>Refactor legacy reports to use APIs or replicated data, not direct DB joins.</li>
+                </ul>
+            </li>
+            <li><b>Decommission Monolith:</b>
+                <ul>
+                    <li>Once all modules are extracted and stable, retire the monolith. Archive code and data for reference.</li>
+                    <li>Update documentation and onboarding materials to reflect the new architecture.</li>
+                </ul>
+            </li>
+        </ol>
+        <h2>Team Allocation (10 Developers)</h2>
+        <ul>
+            <li><b>2 Devs: Catalog Service</b> – Extraction, API, and eventing.</li>
+            <li><b>2 Devs: Order Service</b> – Extraction, API, and eventing.</li>
+            <li><b>2 Devs: Customer Service & Auth</b> – Extraction, API, and authentication refactor.</li>
+            <li><b>2 Devs: Inventory, Pricing, Shipping</b> – Extraction, API, and eventing for each.</li>
+            <li><b>1 Dev: Content, WishList, Payments</b> – Extraction and integration.</li>
+            <li><b>1 Dev: DevOps/CI/CD/Monitoring</b> – Build pipelines, deployment, logging, tracing, and integration support.</li>
+        </ul>
+        <h2>Timeline & Milestones (Estimate)</h2>
+        <ul>
+            <li><b>Weeks 1-2:</b> In-depth analysis, planning, and environment setup. Document all dependencies and integration points.</li>
+            <li><b>Weeks 3-5:</b> Catalog service extraction, API implementation, and initial integration. Validate with tests and user feedback.</li>
+            <li><b>Weeks 6-8:</b> Orders and Customers extraction, API/event implementation, and integration. Refactor authentication.</li>
+            <li><b>Weeks 9-12:</b> Extract remaining services (Inventory, Pricing, Shipping, WishList, Content, Payments), implement event-driven communication, and refactor reporting.</li>
+            <li><b>Weeks 13-14:</b> Comprehensive testing, stabilization, documentation updates, and monolith decommission.</li>
+        </ul>
+        <h2>Quality Gates, Testing & Validation</h2>
+        <ul>
+            <li>Automated unit, integration, and end-to-end tests for each service and integration point.</li>
+            <li>Manual regression testing for critical business flows.</li>
+            <li>Performance and load testing for new APIs and event handlers.</li>
+            <li>Continuous monitoring of logs, metrics, and error rates.</li>
+            <li>Feature flags for gradual rollout and rollback capability.</li>
+        </ul>
+        <h2>Dependencies & Risk Management</h2>
+        <ul>
+            <li>Document all dependencies between services, APIs, and events. Use diagrams and tables for clarity.</li>
+            <li>Identify high-risk areas (e.g., data migration, authentication, payment flows) and plan mitigations.</li>
+            <li>Maintain a risk register and update as migration progresses.</li>
+        </ul>
+    </div>
+</body>
+</html>

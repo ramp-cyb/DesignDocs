@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Migration Plan - SimplCommerce Microservices</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <a href="MigrationAnalysis.html">Analysis</a>
+        <a href="MigrationPlan.html">Migration Plan</a>
+        <a href="DesignOverview.html">Design Overview</a>
+        <a href="ExecutionPlan.html">Execution Plan</a>
+        <a href="DependencyGraph.html">Dependency Graph</a>
+        <a href="MigrationExamples.html">Migration Examples</a>
+        <a href="StranglerTDD.html">Strangler & TDD Guide</a>
+    </nav>
+    <div class="container">
+        <h1>Comprehensive Migration Plan</h1>
+        <ol>
+            <li><b>Assess and Document Current State:</b> 
+                <ul>
+                    <li>Perform a deep review of the codebase, database schema, and all module dependencies. Document all business domains, data flows, and integration points.</li>
+                    <li>Identify tightly coupled areas, shared data, and technical debt. Use diagrams and code references for clarity.</li>
+                    <li><i>Rationale:</i> A thorough understanding of the monolith is essential to avoid missed dependencies and migration surprises.</li>
+                    <li><i>Risks:</i> Incomplete analysis can lead to broken features or data loss during migration.</li>
+                </ul>
+            </li>
+            <li><b>Define Microservice Boundaries:</b>
+                <ul>
+                    <li>Map business capabilities to potential services (e.g., Catalog, Orders, Customers, Inventory, Pricing, Shipping, Content, Payments).</li>
+                    <li>For each, document responsibilities, data ownership, and integration needs. Reference the dependency graph and analysis tables.</li>
+                    <li><i>Rationale:</i> Clear boundaries reduce coupling and make services independently deployable.</li>
+                    <li><i>Risks:</i> Poorly chosen boundaries can result in chatty services or duplicated logic.</li>
+                </ul>
+            </li>
+            <li><b>Extract First Service (Recommended: Catalog):</b>
+                <ul>
+                    <li>Catalog is a core, well-bounded domain with clear APIs and limited cross-module writes. Start by extracting Catalog code, data models, and APIs into a new service.</li>
+                    <li>Refactor the monolith to call the new Catalog API for product-related operations. Keep admin UI in the monolith initially for simplicity.</li>
+                    <li><i>Rationale:</i> Starting with a less-coupled, high-value service builds migration confidence and patterns for later services.</li>
+                    <li><i>Risks:</i> Overlooked dependencies (e.g., Inventory, Pricing) may require additional API contracts or events.</li>
+                    <li><i>Validation:</i> Ensure all product-related features work via the new service, with no data loss or regression.</li>
+                </ul>
+            </li>
+            <li><b>Implement Strangler Fig Pattern:</b>
+                <ul>
+                    <li>Route product-related API calls to the new Catalog service, while legacy endpoints remain in the monolith.</li>
+                    <li>Gradually migrate more endpoints/features to the new service, monitoring traffic and error rates.</li>
+                    <li><i>Rationale:</i> Allows incremental migration with rollback capability and minimal disruption.</li>
+                    <li><i>How-to:</i> Use an API Gateway or routing middleware to direct requests. Monitor logs and metrics for issues.</li>
+                </ul>
+            </li>
+            <li><b>Incremental Extraction:</b>
+                <ul>
+                    <li>Repeat the extraction process for Orders, Customers, Inventory, Pricing, Shipping, Content, Payments, etc.</li>
+                    <li>For each, follow a checklist: extract code, migrate data, implement new APIs/events, refactor monolith to use new service, validate feature parity.</li>
+                    <li><i>Rationale:</i> Incremental migration reduces risk and allows for continuous delivery.</li>
+                    <li><i>Risks:</i> Incomplete decoupling or missed integration points can cause regressions.</li>
+                </ul>
+            </li>
+            <li><b>Coexistence Phase:</b>
+                <ul>
+                    <li>Monolith and microservices run side-by-side. Use API Gateway or routing logic to direct requests to the correct backend.</li>
+                    <li>Implement temporary data synchronization for shared entities (e.g., user IDs, product IDs) if needed.</li>
+                    <li><i>Rationale:</i> Enables gradual cutover and rollback if issues arise.</li>
+                    <li><i>Risks:</i> Data drift or sync issues; mitigate with clear ownership and sync jobs.</li>
+                </ul>
+            </li>
+            <li><b>Refactor Data Access:</b>
+                <ul>
+                    <li>Remove cross-module foreign keys. Each service should own its database schema and only reference other entities by ID.</li>
+                    <li>Introduce service-specific databases. Use data duplication and eventual consistency where necessary.</li>
+                    <li><i>Before:</i> <code>OrderItem.ProductId → Product.Id (FK)</code><br><i>After:</i> <code>OrderItem.ProductId (no FK, resolved via API/event)</code></li>
+                    <li><i>Rationale:</i> Decouples data, enables independent scaling and deployment.</li>
+                </ul>
+            </li>
+            <li><b>Refactor Communication:</b>
+                <ul>
+                    <li>Replace direct service calls with HTTP APIs or asynchronous events (e.g., via message bus).</li>
+                    <li>Define clear API contracts and event schemas. Use versioning for backward compatibility.</li>
+                    <li><i>Example:</i> <code>OrderService → CatalogService.GetProduct()</code> or <code>OrderCreatedEvent</code></li>
+                    <li><i>Rationale:</i> Enables loose coupling and resilience.</li>
+                </ul>
+            </li>
+            <li><b>Test and Validate:</b>
+                <ul>
+                    <li>At each step, ensure feature parity, data integrity, and performance. Use automated and manual testing.</li>
+                    <li>Monitor logs, metrics, and user feedback for regressions.</li>
+                    <li><i>Rationale:</i> Early detection of issues reduces cost and risk.</li>
+                </ul>
+            </li>
+            <li><b>Decommission Monolith:</b>
+                <ul>
+                    <li>Once all modules are extracted and stable, retire the monolith. Archive code and data for reference.</li>
+                    <li>Update documentation and onboarding materials to reflect the new architecture.</li>
+                    <li><i>Rationale:</i> Reduces operational overhead and technical debt.</li>
+                </ul>
+            </li>
+        </ol>
+        <h2>Transition State</h2>
+        <ul>
+            <li>Some features are served by the monolith, others by microservices. The API Gateway or routing layer directs requests appropriately.</li>
+            <li>Temporary data synchronization may be required for shared entities. Plan for eventual removal as ownership is clarified.</li>
+            <li>Document all transition states and rollback procedures for each migration step.</li>
+        </ul>
+        <h2>Rollback and Contingency Planning</h2>
+        <ul>
+            <li>For each migration step, define clear rollback procedures (e.g., revert API routing, restore data from backup).</li>
+            <li>Maintain feature flags or toggles to quickly disable new services if issues arise.</li>
+            <li>Document known risks and mitigation strategies for each phase.</li>
+        </ul>
+    </div>
+</body>
+</html>

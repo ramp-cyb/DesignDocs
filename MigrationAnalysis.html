@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Migration Analysis - SimplCommerce Microservices</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <a href="MigrationAnalysis.html">Analysis</a>
+        <a href="MigrationPlan.html">Migration Plan</a>
+        <a href="DesignOverview.html">Design Overview</a>
+        <a href="ExecutionPlan.html">Execution Plan</a>
+        <a href="DependencyGraph.html">Dependency Graph</a>
+        <a href="MigrationExamples.html">Migration Examples</a>
+        <a href="StranglerTDD.html">Strangler & TDD Guide</a>
+    </nav>
+    <div class="container">
+        <h1>Detailed Analysis & Review of Current System</h1>
+        <h2>Current Monolithic Architecture</h2>
+        <h3>Project Structure & Technologies</h3>
+        <ul>
+            <li><b>src/Modules/</b> – Contains all business modules (e.g., Catalog, Orders, Inventory, Pricing, Shipping, WishList, Core, Content Management, Payments, etc.). Each module is a folder with its own Models, Services, Controllers, Data, and ViewModels.</li>
+            <li><b>src/SimplCommerce.WebHost/</b> – Main ASP.NET Core web application. Composes all modules, handles startup, dependency injection, and HTTP endpoints.</li>
+            <li><b>src/Database/</b> – SQL scripts for static data and initial setup. Schema is managed by Entity Framework Core migrations.</li>
+            <li><b>test/</b> – Unit and integration tests for each module.</li>
+            <li><b>build/</b> – Build scripts, MSBuild tasks, and utilities.</li>
+        </ul>
+        <b>Technologies Used:</b>
+        <ul>
+            <li>ASP.NET Core (Web API, MVC, Dependency Injection)</li>
+            <li>Entity Framework Core (Single DbContext: <b>SimplDbContext</b>)</li>
+            <li>SQL Server (default), with scripts for other DBs</li>
+            <li>Razor Views, AngularJS (admin UI), jQuery, Bootstrap</li>
+            <li>Modular architecture via folder structure and DI</li>
+        </ul>
+        <h3>Module Dependency Graph</h3>
+        <div class="note">All modules are loaded into a single process and share the same DbContext. Dependencies are managed via DI and explicit references. Example (not exhaustive):</div>
+        <pre style="background:#f1f5f9; border:1px solid #cbd5e1; padding:12px; border-radius:6px; font-size:0.95em;">
+Core (Users, Auth)
+├─ Catalog (uses Core for Vendor/User)
+│   ├─ Inventory (uses Catalog for Product)
+│   ├─ Pricing (uses Catalog for Product)
+│   ├─ WishList (uses Catalog for Product, Core for User)
+│   └─ Orders (uses Catalog for Product, Core for User)
+├─ Content, Reviews, Comments (use Core and Catalog)
+├─ Payments (uses Orders)
+└─ Shipping (uses Orders)
+        </pre>
+        <h3>Database Structure & ER Diagram</h3>
+        <div class="note">All modules share a single database. Tables are prefixed by module. Foreign keys link entities across modules.</div>
+        <pre style="background:#f1f5f9; border:1px solid #cbd5e1; padding:12px; border-radius:6px; font-size:0.95em;">
+<b>Core_User</b> ─┬─<span style="color:#3182ce;">┬─</span><b>Orders_Order</b>
+           ├─<span style="color:#3182ce;">┬─</span><b>WishList_WishList</b>
+           ├─<span style="color:#3182ce;">┬─</span><b>Core_Address</b>
+           └─<span style="color:#3182ce;">┬─</span><b>Core_Vendor</b>
+
+<b>Catalog_Product</b> ─<span style="color:#3182ce;">┬─</span><b>Orders_OrderItem</b>
+                ├─<span style="color:#3182ce;">┬─</span><b>Inventory_Stock</b>
+                ├─<span style="color:#3182ce;">┬─</span><b>WishList_WishListItem</b>
+                ├─<span style="color:#3182ce;">┬─</span><b>Pricing_CartRuleProduct</b>
+                └─<span style="color:#3182ce;">┬─</span><b>Reviews_Review</b>
+
+<b>Orders_Order</b> ─<span style="color:#3182ce;">┬─</span><b>Payments_Payment</b>
+             └─<span style="color:#3182ce;">┬─</span><b>Shipping_Shipment</b>
+
+<b>Inventory_Stock</b> ─<span style="color:#3182ce;">┬─</span><b>Inventory_Warehouse</b>
+
+<b>Pricing_CartRule</b> ─<span style="color:#3182ce;">┬─</span><b>Pricing_Coupon</b>
+
+Content, News, Comments, ActivityLog, etc. link to <b>Core_User</b> or <b>Catalog_Product</b> as needed.
+        </pre>
+        <h2>Potential Microservices & Mapping to Monolith</h2>
+        <h2>Class/Function Call Dependency Graph</h2>
+        <div class="note">See the <a href="DependencyGraph.html">Dependency Graph</a> page for a detailed, interactive visualization of controller, service, and repository relationships, including cross-module dependencies. This graph is essential for understanding coupling and refactoring needs during migration.</div>
+        <ul>
+            <li><b>Controllers</b> depend on <b>Services</b> for business logic.</li>
+            <li><b>Services</b> depend on <b>Repositories</b> for data access and may call other services (including cross-module).</li>
+            <li><b>Repositories</b> are generic and injected via DI.</li>
+            <li>Cross-module dependencies (e.g., Orders → Pricing, Catalog, Checkouts) are key migration points for microservice boundaries.</li>
+        </ul>
+        <p>Copilot can help refactor these dependencies by generating new service interfaces, API contracts, and data access layers for each microservice.</p>
+        <div class="note">Each microservice boundary is chosen based on business capability, data ownership, and code decoupling. Below, for each candidate, we list: reasoning, key classes/files, and DB tables/entities to migrate.</div>
+        <table class="table">
+            <tr><th>Microservice</th><th>Reasoning</th><th>Key Classes/Files</th><th>DB Tables/Entities</th></tr>
+            <tr>
+                <td><b>Catalog</b></td>
+                <td>Product management is a core, well-bounded business capability. Catalog logic is mostly self-contained, with clear APIs and limited cross-module writes.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Catalog/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Catalog/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Catalog/Areas/Catalog/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Catalog/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Catalog_Product</li>
+                        <li>Catalog_Category</li>
+                        <li>Catalog_Brand</li>
+                        <li>Catalog_ProductAttribute</li>
+                        <li>Catalog_ProductTemplate</li>
+                        <li>Catalog_ProductCategory</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Orders</b></td>
+                <td>Order processing is a transactional, business-critical capability. It depends on Catalog and Core (User), but logic is mostly isolated.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Orders/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Orders/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Orders/Areas/Orders/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Orders/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Orders_Order</li>
+                        <li>Orders_OrderItem</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Customers (Core)</b></td>
+                <td>User management, authentication, and vendor logic are centralized and used by most modules. Core is a natural boundary for identity and user data.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Core/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Core/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Core/Areas/Core/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Core/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Core_User</li>
+                        <li>Core_Address</li>
+                        <li>Core_Vendor</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Inventory</b></td>
+                <td>Stock and warehouse management is a distinct business capability, with clear data ownership and APIs.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Inventory/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Inventory/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Inventory/Areas/Inventory/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Inventory/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Inventory_Stock</li>
+                        <li>Inventory_Warehouse</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Pricing</b></td>
+                <td>Cart rules, coupons, and discounts are managed in a focused module, with limited cross-module writes.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Pricing/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Pricing/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Pricing/Areas/Pricing/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Pricing/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Pricing_CartRule</li>
+                        <li>Pricing_Coupon</li>
+                        <li>Pricing_CartRuleProduct</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Shipping</b></td>
+                <td>Shipping logic is mostly isolated, with clear APIs and data ownership.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Shipping/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Shipping/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Shipping/Areas/Shipping/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Shipping/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Shipping_Shipment</li>
+                        <li>Shipping_ShippingMethod</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>WishList</b></td>
+                <td>Wish list logic is self-contained, with clear boundaries and limited dependencies.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.WishList/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.WishList/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.WishList/Areas/WishList/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.WishList/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>WishList_WishList</li>
+                        <li>WishList_WishListItem</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Content Management</b></td>
+                <td>Pages, news, comments, and reviews are managed in a focused module, with clear APIs and data ownership.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Cms/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Cms/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Cms/Areas/Cms/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Cms/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Cms_Page</li>
+                        <li>Cms_News</li>
+                        <li>Comments_Comment</li>
+                        <li>Reviews_Review</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Payments</b></td>
+                <td>Payment logic is transactional and isolated, with clear APIs and data ownership.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.Payments/Models/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Payments/Services/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Payments/Areas/Payments/Controllers/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Payments/Data/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>Payments_Payment</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><b>Other Services</b></td>
+                <td>Activity logs, notifications, localization, etc. are cross-cutting but can be separated for scalability and maintainability.</td>
+                <td>
+                    <ul>
+                        <li>src/Modules/SimplCommerce.Module.ActivityLog/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Notifications/*</li>
+                        <li>src/Modules/SimplCommerce.Module.Localization/*</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li>ActivityLog_*</li>
+                        <li>Notifications_*</li>
+                        <li>Localization_*</li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+        <div class="note">For each microservice, Copilot can help regenerate/refactor the above code and DB logic into new, service-specific repositories and schemas.</div>
+        <h2>Migration Issues & Challenges</h2>
+        <ul>
+            <li><b>Data Consistency:</b> No cross-service foreign keys, eventual consistency, duplication.</li>
+            <li><b>Inter-Service Communication:</b> Synchronous (API/gRPC) vs. asynchronous (events/message bus).</li>
+            <li><b>Authentication & Authorization:</b> Centralized vs. distributed identity, token sharing.</li>
+            <li><b>Transaction Management:</b> Distributed transactions, sagas, compensating actions.</li>
+            <li><b>Reporting:</b> Aggregating data across services.</li>
+            <li><b>Operational Overhead:</b> Deployment, monitoring, logging, tracing.</li>
+        </ul>
+    </div>
+</body>
+</html>

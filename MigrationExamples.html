@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Migration Examples & Issues - SimplCommerce Microservices</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Ensuring consistent styling if style.css is not available */
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fafbfc; color: #222; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: #2c3e50; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 2em; }
+        th, td { border: 1px solid #ccc; padding: 0.5em 1em; text-align: left; }
+        th { background: #f5f5f5; }
+        code, pre { background: #f3f3f3; padding: 2px 4px; border-radius: 3px; overflow: auto; }
+        pre { padding: 10px; margin: 10px 0; }
+        .example { background: #eef; border-left: 3px solid #6ca0dc; padding: 0.5em 1em; margin: 1em 0; }
+        ul { margin-left: 2em; }
+        .main-nav { background: #2c3e50; color: white; padding: 10px 20px; }
+        .main-nav a { color: white; text-decoration: none; margin-right: 15px; padding: 5px; }
+        .main-nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <nav class="main-nav">
+        <a href="MigrationAnalysis.html">Analysis</a>
+        <a href="MigrationPlan.html">Migration Plan</a>
+        <a href="DesignOverview.html">Design Overview</a>
+        <a href="ExecutionPlan.html">Execution Plan</a>
+        <a href="DependencyGraph.html">Dependency Graph</a>
+        <a href="MigrationExamples.html">Migration Examples</a>
+        <a href="StranglerTDD.html">Strangler & TDD Guide</a>
+    </nav>
+    <div class="container">
+        <h1>Migration Examples & Issues</h1>
+        <p>This page provides concrete code and database-level examples for common migration issues encountered when moving from a monolithic to a microservices architecture in SimplCommerce. Each example includes the problem, monolithic code, microservices solution, and key considerations for developers.</p>
+
+        <h2>Common Migration Issues Overview</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Issue</th>
+                    <th>Example File/Code</th>
+                    <th>Challenge / Action Required</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Tight module coupling</td>
+                    <td>widget-instance-list.js, OrderService.cs</td>
+                    <td>Refactor for API-based communication</td>
+                </tr>
+                <tr>
+                    <td>Shared DbContext/database</td>
+                    <td>Repository.cs, SimplDbContext.cs</td>
+                    <td>Split database, refactor repositories</td>
+                </tr>
+                <tr>
+                    <td>Highly connected schema</td>
+                    <td>Migrations, ModelSnapshot</td>
+                    <td>Break foreign keys, decouple data</td>
+                </tr>
+                <tr>
+                    <td>Shared domain models</td>
+                    <td>ProductCategory.cs</td>
+                    <td>Assign ownership, duplicate/expose via API</td>
+                </tr>
+                <tr>
+                    <td>Shared utilities/services</td>
+                    <td>simplUtil.js, SettingService.cs</td>
+                    <td>Refactor into libraries or service APIs</td>
+                </tr>
+                <tr>
+                    <td>Centralized configuration</td>
+                    <td>GlobalConfiguration.cs</td>
+                    <td>Distribute configuration per service</td>
+                </tr>
+                <tr>
+                    <td>Single DB migration/init</td>
+                    <td>SampleDataService.cs, InitDb.cs</td>
+                    <td>Per-service migrations & bootstrap</td>
+                </tr>
+                <tr>
+                    <td>Vertically coupled UI</td>
+                    <td>cms.module.js, core.module.js</td>
+                    <td>UI per service or API-based UI</td>
+                </tr>
+                <tr>
+                    <td>Tight DB relationships</td>
+                    <td>Core_User, Orders_Order</td>
+                    <td>Remove cross-domain FKs, use APIs/events</td>
+                </tr>
+                <tr>
+                    <td>Shared static data/localization</td>
+                    <td>StaticData-DefaultLocalization.sql</td>
+                    <td>Per-service or central localization</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Problem 1: Tight Coupling Between Modules</h2>
+        <h3>The Problem</h3>
+        <p>In the monolith, modules like Orders and Catalog are tightly coupled through direct method calls.</p>
+        <pre><code class="language-csharp">// Monolith: Direct service call
+public class OrderService
+{
+    private readonly CatalogService _catalogService;
+    public OrderService(CatalogService catalogService) { _catalogService = catalogService; }
+    public void CreateOrder(Order order)
+    {
+        var product = _catalogService.GetProduct(order.ProductId);
+        if (product.StockQuantity < order.Quantity)
+            throw new InvalidOperationException("Insufficient stock.");
+        // Proceed with order creation
+    }
+}
+</code></pre>
+        <h3>The Solution</h3>
+        <p>Refactor to use inter-service communication (e.g., HTTP API):</p>
+        <pre><code class="language-csharp">// Microservices: HTTP API call
+public class OrderService
+{
+    private readonly HttpClient _httpClient;
+    public OrderService(HttpClient httpClient) { _httpClient = httpClient; }
+    public async Task CreateOrder(Order order)
+    {
+        var response = await _httpClient.GetAsync($"http://catalog-service/api/products/{order.ProductId}");
+        if (!response.IsSuccessStatusCode)
+            throw new Exception("Failed to retrieve product.");
+        var product = await response.Content.ReadAsAsync<Product>();
+        if (product.StockQuantity < order.Quantity)
+            throw new InvalidOperationException("Insufficient stock.");
+        // Proceed with order creation
+    }
+}
+</code></pre>
+        <b>Key Changes:</b> Replace direct calls with HTTP requests. <b>Consider:</b> Add error handling, retries, and caching.
+
+        <h3>Additional Example: Frontend Widget Coupling</h3>
+        <div class="example">
+            <b>Monolith Example:</b>
+            <pre><code class="language-javascript">function WidgetInstanceListCtrl(widgetService, translateService) {
+    widgetService.getWidgets().then(...);
+    widgetService.getWidgetInstances().then(...);
+}
+</code></pre>
+            <b>Microservices Solution:</b>
+            <pre><code class="language-javascript">function WidgetInstanceListCtrl(apiService, translateService) {
+    apiService.get('/api/cms/widgets').then(...);
+    apiService.get('/api/cms/widget-instances').then(...);
+}
+</code></pre>
+        </div>
+
+        <h2>Problem 2: Shared Database Access</h2>
+        <h3>The Problem</h3>
+        <p>All modules share a single database and use navigation properties for direct data access.</p>
+        <pre><code class="language-csharp">// Monolith: Navigation property
+public class OrderItem
+{
+    public int Id { get; set; }
+    public int OrderId { get; set; }
+    public Order Order { get; set; }
+    public int ProductId { get; set; }
+    public Product Product { get; set; } // Navigation property
+}
+
+public class OrderService
+{
+    private readonly SimplCommerceContext _dbContext;
+    public OrderService(SimplCommerceContext dbContext) { _dbContext = dbContext; }
+    public void CreateOrder(Order order)
+    {
+        var orderItem = order.Items.First();
+        var product = _dbContext.OrderItems
+            .Include(oi => oi.Product)
+            .First(oi => oi.Id == orderItem.Id)
+            .Product;
+        // Use product details
+    }
+}
+</code></pre>
+        <h3>The Solution</h3>
+        <p>Remove navigation properties and use API calls:</p>
+        <pre><code class="language-csharp">// Microservices: No navigation property
+public class OrderItem
+{
+    public int Id { get; set; }
+    public int OrderId { get; set; }
+    public int ProductId { get; set; } // Just the ID
+}
+
+public class OrderService
+{
+    private readonly HttpClient _httpClient;
+    private readonly OrderDbContext _dbContext;
+    public OrderService(HttpClient httpClient, OrderDbContext dbContext)
+    {
+        _httpClient = httpClient;
+        _dbContext = dbContext;
+    }
+    public async Task CreateOrder(Order order)
+    {
+        var orderItem = order.Items.First();
+        var response = await _httpClient.GetAsync($"http://catalog-service/api/products/{orderItem.ProductId}");
+        var product = await response.Content.ReadAsAsync<Product>();
+        // Use product details
+    }
+}
+</code></pre>
+        <b>Key Changes:</b> Remove navigation properties and joins. <b>Consider:</b> Store minimal duplicated data and keep it consistent via events.
+
+        <h3>Additional Example: Repository Decoupling</h3>
+        <div class="example">
+            <b>Monolith Example:</b>
+            <pre><code class="language-csharp">public class Repository&lt;T&gt; : RepositoryWithTypedId&lt;T, long&gt;, IRepository&lt;T&gt; {
+    public Repository(SimplDbContext context) : base(context) { }
+}
+</code></pre>
+            <b>Microservices Solution:</b>
+            <pre><code class="language-csharp">// In Catalog Service
+public class CatalogRepository&lt;T&gt; : RepositoryWithTypedId&lt;T, long&gt;, IRepository&lt;T&gt; {
+    public CatalogRepository(CatalogDbContext context) : base(context) { }
+}
+
+// In Order Service
+public class OrderRepository&lt;T&gt; : RepositoryWithTypedId&lt;T, long&gt;, IRepository&lt;T&gt; {
+    public OrderRepository(OrderDbContext context) : base(context) { }
+}
+</code></pre>
+        </div>
+
+        <h2>Problem 3: Transaction Management Across Modules</h2>
+        <h3>The Problem</h3>
+        <p>Monoliths use a single DB transaction for multi-module operations:</p>
+        <pre><code class="language-csharp">// Monolith: Single DB transaction
+public class OrderService
+{
+    private readonly SimplCommerceContext _dbContext;
+    private readonly InventoryService _inventoryService;
+    public OrderService(SimplCommerceContext dbContext, InventoryService inventoryService)
+    {
+        _dbContext = dbContext;
+        _inventoryService = inventoryService;
+    }
+    public void CreateOrder(Order order)
+    {
+        using (var transaction = _dbContext.Database.BeginTransaction())
+        {
+            try
+            {
+                _dbContext.Orders.Add(order);
+                _dbContext.SaveChanges();
+                _inventoryService.UpdateStock(order.Items.First().ProductId, -order.Items.First().Quantity);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+    }
+}
+</code></pre>
+        <h3>The Solution</h3>
+        <p>Use a Saga pattern with events for distributed coordination:</p>
+        <pre><code class="language-csharp">// Microservices: Saga pattern with events
+// In Order Service
+public class OrderService
+{
+    private readonly OrderDbContext _dbContext;
+    private readonly IMessageBroker _messageBroker;
+    public OrderService(OrderDbContext dbContext, IMessageBroker messageBroker)
+    {
+        _dbContext = dbContext;
+        _messageBroker = messageBroker;
+    }
+    public async Task CreateOrder(Order order)
+    {
+        _dbContext.Orders.Add(order);
+        await _dbContext.SaveChangesAsync();
+        await _messageBroker.PublishAsync(new OrderCreatedEvent
+        {
+            OrderId = order.Id,
+            ProductId = order.Items.First().ProductId,
+            Quantity = order.Items.First().Quantity
+        });
+    }
+}
+
+// In Inventory Service
+public class InventoryService
+{
+    private readonly InventoryDbContext _dbContext;
+    private readonly IMessageBroker _messageBroker;
+    public InventoryService(InventoryDbContext dbContext, IMessageBroker messageBroker)
+    {
+        _dbContext = dbContext;
+        _messageBroker = messageBroker;
+        _messageBroker.Subscribe<OrderCreatedEvent>(HandleOrderCreated);
+    }
+    private async Task HandleOrderCreated(OrderCreatedEvent e)
+    {
+        var product = await _dbContext.Products.FindAsync(e.ProductId);
+        if (product.Stock >= e.Quantity)
+        {
+            product.Stock -= e.Quantity;
+            await _dbContext.SaveChangesAsync();
+            await _messageBroker.PublishAsync(new StockUpdatedEvent { OrderId = e.OrderId });
+        }
+        else
+        {
+            await _messageBroker.PublishAsync(new StockUpdateFailedEvent { OrderId = e.OrderId });
+        }
+    }
+}
+</code></pre>
+        <b>Key Changes:</b> Replace DB transaction with event-driven coordination. <b>Consider:</b> Implement compensating actions and idempotency.
+
+        <h2>Problem 4: Highly Connected Database Schema</h2>
+        <h3>The Problem</h3>
+        <p>Tables across modules are tightly coupled with foreign key constraints.</p>
+        <pre><code class="language-csharp">// Monolith: Cross-module foreign keys
+b.HasOne("SimplCommerce.Module.Core.Models.User", "User")
+    .WithMany()
+    .HasForeignKey("UserId")
+    .OnDelete(DeleteBehavior.Restrict)
+    .IsRequired();
+</code></pre>
+        <p>Example DB structure:</p>
+        <pre><code class="language-sql">CREATE TABLE [Core_User] (...);
+CREATE TABLE [Orders_Order] (
+    ...,
+    [CustomerId] bigint NOT NULL,
+    FOREIGN KEY ([CustomerId]) REFERENCES [Core_User]([Id])
+)</code></pre>
+        <h3>The Solution</h3>
+        <p>Remove cross-domain foreign keys and use logical references instead:</p>
+        <pre><code class="language-csharp">// Microservices: No cross-module foreign keys
+// In Order Service
+public class Order {
+    public long Id { get; set; }
+    public long CustomerId { get; set; } // Just the ID, no foreign key constraint
+    // Other properties
+}
+
+// When needed, fetch user data via API
+public async Task<CustomerDto> GetCustomerAsync(long customerId) {
+    var response = await _httpClient.GetAsync($"http://customer-service/api/customers/{customerId}");
+    return await response.Content.ReadAsAsync<CustomerDto>();
+}
+</code></pre>
+        <p>Example DB structure:</p>
+        <pre><code class="language-sql">-- In User Service DB
+CREATE TABLE [Users] (...);
+
+-- In Order Service DB (no foreign key to Users table)
+CREATE TABLE [Orders] (
+    ...,
+    [CustomerId] bigint NOT NULL -- Just a value, no FK constraint
+)</code></pre>
+        <b>Key Changes:</b> Remove cross-service foreign keys and rely on service APIs for data consistency.
+
+        <h2>Problem 5: Shared Domain Models</h2>
+        <h3>The Problem</h3>
+        <p>Domain models are shared across modules, creating tight coupling.</p>
+        <pre><code class="language-csharp">// Monolith: Shared domain model
+public class ProductCategory : EntityBase {
+    public long CategoryId { get; set; }
+    public long ProductId { get; set; }
+    public Category Category { get; set; }
+    public Product Product { get; set; }
+}
+</code></pre>
+        <h3>The Solution</h3>
+        <p>Assign clear ownership of entities to services and use DTOs for cross-service communication:</p>
+        <pre><code class="language-csharp">// In Catalog Service: Owner of Product and Category
+public class ProductCategory : EntityBase {
+    public long CategoryId { get; set; }
+    public long ProductId { get; set; }
+    public Category Category { get; set; }
+    public Product Product { get; set; }
+}
+
+// In Order Service: Uses ProductDto
+public class OrderItem : EntityBase {
+    public long OrderId { get; set; }
+    public long ProductId { get; set; } // Just the ID
+    public string ProductName { get; set; } // Denormalized for display
+    public decimal ProductPrice { get; set; } // Snapshot at order time
+    // No navigation property to Product
+}
+</code></pre>
+        <b>Key Changes:</b> Clear ownership boundaries, use DTOs for cross-service communication, and denormalize when necessary.
+
+        <h2>Problem 6: Centralized Configuration</h2>
+        <h3>The Problem</h3>
+        <p>Configuration is centralized and shared across modules.</p>
+        <pre><code class="language-csharp">// Monolith: Centralized configuration
+public static class GlobalConfiguration {
+    public static IList&lt;ModuleInfo&gt; Modules { get; set; }
+    // ...
+}
+</code></pre>
+        <h3>The Solution</h3>
+        <p>Each service manages its own configuration, possibly with a central config service:</p>
+        <pre><code class="language-csharp">// In each microservice
+public class ServiceConfiguration {
+    public ConnectionStrings ConnectionStrings { get; set; }
+    public ServiceSettings Settings { get; set; }
+    // Service-specific configuration
+}
+
+// In Program.cs or Startup.cs
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .AddEnvironmentVariables()
+    .Build();
+
+// Optional: use config server for centralized management
+services.AddConfigServer(configuration);
+</code></pre>        <b>Key Changes:</b> Service-specific configuration, environment variables, and potentially a config server.
+
+        <h2>Problem 7: Database Migration & Initialization</h2>
+        <h3>The Problem</h3>
+        <p>In the monolith, database migration and initialization are centralized processes.</p>
+        <pre><code class="language-csharp">// Monolith: Centralized database initialization
+var commands = ... ? _sqlRepository.PostgresCommands(lines) : _sqlRepository.ParseCommand(lines);
+_sqlRepository.RunCommands(commands);</code></pre>
+        <h3>The Solution</h3>
+        <p>Each microservice manages its own database migrations and initialization:</p>
+        <pre><code class="language-csharp">// In each microservice
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var host = CreateHostBuilder(args).Build();
+        
+        // Apply migrations on startup
+        using (var scope = host.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            var dbContext = services.GetRequiredService<ServiceDbContext>();
+            dbContext.Database.Migrate();
+            
+            // Seed initial data if needed
+            var dataSeeder = services.GetRequiredService<IDataSeeder>();
+            dataSeeder.SeedAsync().Wait();
+        }
+        
+        host.Run();
+    }
+}</code></pre>
+        <b>Key Changes:</b> Each service manages its own database schema and migrations. Initial data seeding is service-specific.
+
+        <h2>Problem 8: Vertically Coupled UI</h2>
+        <h3>The Problem</h3>
+        <p>UI components are tightly coupled to backend modules:</p>
+        <pre><code class="language-javascript">.state('menus', {
+    url: '/menus/',
+    templateUrl: '_content/SimplCommerce.Module.Cms/admin/menu/menu-list.html',
+    controller: 'MenuListCtrl as vm'
+})</code></pre>
+        <h3>The Solution</h3>
+        <p>Decouple UI by creating service-specific frontends or a unified frontend that communicates with services via APIs:</p>
+        <pre><code class="language-javascript">// Option 1: Service-specific UI components
+.state('menus', {
+    url: '/menus/',
+    templateUrl: 'cms/menu/menu-list.html',
+    controller: 'MenuListCtrl as vm',
+    resolve: {
+        menuData: function(apiService) {
+            return apiService.get('http://cms-service/api/menus');
+        }
+    }
+})
+
+// Option 2: Micro-frontends approach
+const cmsApp = document.createElement('cms-menu-app');
+document.getElementById('cms-container').appendChild(cmsApp);</code></pre>
+        <b>Key Changes:</b> UI components communicate with backend services via APIs instead of direct module references.
+
+        <h2>Problem 9: Shared Static Data / Localization</h2>
+        <h3>The Problem</h3>
+        <p>Static data and localization resources are shared across all modules:</p>
+        <pre><code class="language-sql">INSERT [dbo].[Localization_Resource] ([CultureId], [Key], [Value]) VALUES ('en-US', N'Widgets', N'Widgets');</code></pre>
+        <h3>The Solution</h3>
+        <p>Each service manages its own localization data or uses a dedicated localization service:</p>
+        <pre><code class="language-csharp">// Option 1: Service-specific localization
+// In Catalog Service
+services.AddLocalization(options => options.ResourcesPath = "Resources");
+
+// Option 2: Centralized localization service
+public class LocalizationController : Controller
+{
+    private readonly ILocalizationService _localizationService;
+    
+    public LocalizationController(ILocalizationService localizationService)
+    {
+        _localizationService = localizationService;
+    }
+    
+    [HttpGet("api/localization/{culture}/{key}")]
+    public async Task<IActionResult> GetLocalization(string culture, string key)
+    {
+        var value = await _localizationService.GetValueAsync(culture, key);
+        return Ok(new { value });
+    }
+}</code></pre>
+        <b>Key Changes:</b> Service-specific localization resources or a dedicated localization microservice.
+
+        <h2>Problem 10: Shared Utility & Service Functions</h2>
+        <h3>The Problem</h3>
+        <p>Utility functions and services are shared across modules:</p>
+        <pre><code class="language-javascript">function escapeHtml(source) { ... }</code></pre>
+        <h3>The Solution</h3>
+        <p>Extract shared utilities into libraries or create service-specific utilities:</p>
+        <pre><code class="language-javascript">// Option 1: Shared utility library (npm package)
+// @simplcommerce/utils
+export function escapeHtml(source) { ... }
+
+// In service code
+import { escapeHtml } from '@simplcommerce/utils';
+
+// Option 2: Service-specific implementation
+// In each service that needs it
+function escapeHtml(source) { ... }</code></pre>        <b>Key Changes:</b> Extract common utilities to shared libraries or duplicate in services as needed based on coupling and change frequency.
+
+        <h2>Problem 11: Implementing the Strangler Pattern</h2>
+        <h3>The Problem</h3>
+        <p>Successfully coexisting the monolith and microservices during transition is challenging without a clear migration strategy.</p>
+
+        <h3>The Solution: Strangler Pattern Implementation</h3>
+        <p>The Strangler Fig pattern enables incremental migration of the monolith to microservices by:</p>
+        <ul>
+            <li>Extracting one functionality (e.g., a module) at a time into a microservice</li>
+            <li>Routing requests to either the monolith or the new service</li>
+            <li>Retiring the monolith piece by piece until it's fully replaced</li>
+        </ul>
+
+        <h4>Steps for SimplCommerce</h4>
+        <ol>
+            <li><b>Identify a Candidate Module:</b>
+                <ul>
+                    <li>Start with the Catalog module (products, categories, brands)</li>
+                    <li>Files: src/Modules/SimplCommerce.Module.Catalog/</li>
+                    <li>Tables: Catalog_Product, Catalog_Category, Catalog_Brand</li>
+                </ul>
+            </li>
+            <li><b>Build the Microservice:</b>
+                <ul>
+                    <li>Create a new ASP.NET Core Web API project for the Catalog Service</li>
+                    <li>Extract logic from CatalogController.cs, CatalogService.cs, etc.</li>
+                    <li>Define APIs (e.g., GET /api/products/{id}, POST /api/products)</li>
+                    <li>Use a separate database for Catalog_* tables</li>
+                </ul>
+            </li>
+            <li><b>Route Traffic:</b>
+                <ul>
+                    <li>Deploy an API Gateway (e.g., Ocelot) to route requests</li>
+                    <li>/catalog/* → Catalog Service</li>
+                    <li>Other routes → Monolith</li>
+                </ul>
+            </li>
+            <li><b>Coexist and Test:</b>
+                <ul>
+                    <li>Run both the monolith and Catalog Service in parallel</li>
+                    <li>Test functionality to ensure consistency</li>
+                </ul>
+            </li>
+            <li><b>Refactor and Retire:</b>
+                <ul>
+                    <li>Update dependent modules to call the Catalog Service API</li>
+                    <li>Remove Catalog-related code from the monolith once fully migrated</li>
+                </ul>
+            </li>
+            <li><b>Iterate:</b>
+                <ul>
+                    <li>Repeat for Orders, Customers, Inventory, etc.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h4>Real-World Example: Catalog and Orders Interaction</h4>
+        <p><b>In the monolith</b>, OrderService directly calls CatalogService:</p>
+        <pre><code class="language-csharp">public class OrderService
+{
+    private readonly CatalogService _catalogService;
+    public OrderService(CatalogService catalogService)
+    {
+        _catalogService = catalogService;
+    }
+    public void CreateOrder(Order order)
+    {
+        var product = _catalogService.GetProduct(order.ProductId);
+        if (product.StockQuantity < order.Quantity)
+        {
+            throw new InvalidOperationException("Insufficient stock.");
+        }
+        // Save order
+    }
+}</code></pre>
+
+        <p><b>Step 1:</b> Deploy Catalog Service with new API endpoints:</p>
+        <pre><code class="language-csharp">[Route("api/products")]
+public class ProductsController : ControllerBase
+{
+    private readonly CatalogDbContext _dbContext;
+    public ProductsController(CatalogDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetProduct(int id)
+    {
+        var product = await _dbContext.Products.FindAsync(id);
+        return product != null ? Ok(product) : NotFound();
+    }
+}</code></pre>
+
+        <p><b>Step 2:</b> Update Order Service to call the Catalog Service via HTTP:</p>
+        <pre><code class="language-csharp">public class OrderService
+{
+    private readonly HttpClient _httpClient;
+    public OrderService(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+    }
+    public async Task CreateOrder(Order order)
+    {
+        var response = await _httpClient.GetAsync("http://catalog-service/api/products/" + order.ProductId);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception("Failed to get product.");
+        }
+        var product = await response.Content.ReadAsAsync<Product>();
+        if (product.StockQuantity < order.Quantity)
+        {
+            throw new InvalidOperationException("Insufficient stock.");
+        }
+        // Save order
+    }
+}</code></pre>
+
+        <p><b>Step 3:</b> Configure API Gateway to route requests:</p>
+        <pre><code class="language-json">{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/api/products/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "catalog-service", "Port": 80 }
+      ],
+      "UpstreamPathTemplate": "/catalog/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "monolith", "Port": 80 }
+      ],
+      "UpstreamPathTemplate": "/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST" ]
+    }
+  ]
+}</code></pre>
+
+        <p><b>Result:</b> The monolith handles orders while the Catalog Service manages products. Both run in parallel with the API Gateway directing traffic appropriately.</p>
+
+        <h2>Problem 12: Anti-Corruption Layer Implementation</h2>
+        <h3>The Problem</h3>
+        <p>Legacy models and tight coupling can corrupt the clean design of new microservices.</p>
+
+        <h3>The Solution: Anti-Corruption Layer (ACL)</h3>
+        <p>An ACL acts as a buffer between new microservices and the monolith's legacy design, preventing old structures from corrupting the clean, domain-driven design of microservices.</p>
+
+        <h4>Implementation for SimplCommerce</h4>
+        <p>Context: The monolith's SimplDbContext allows direct access to all tables, and modules like Orders directly query Catalog_Product. The new Catalog Service needs a clean model without this tight coupling.</p>
+
+        <p>Legacy model in the monolith (from SimplDbContext):</p>
+        <pre><code class="language-csharp">public class LegacyProduct
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public int VendorId { get; set; } // Direct DB reference
+    public int StockQuantity { get; set; }
+}</code></pre>
+
+        <p>Catalog Service's clean model:</p>
+        <pre><code class="language-csharp">public class Product
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public int StockQuantity { get; set; } // No VendorId, fetched separately if needed
+}</code></pre>
+
+        <p>Anti-Corruption Layer in the Order Service:</p>
+        <pre><code class="language-csharp">public class CatalogAntiCorruptionLayer
+{
+    private readonly HttpClient _httpClient;
+    public CatalogAntiCorruptionLayer(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+    }
+
+    public async Task<Product> GetProductForOrder(int productId)
+    {
+        var response = await _httpClient.GetAsync($"http://catalog-service/api/products/{productId}");
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception("Failed to fetch product.");
+        }
+        var newProduct = await response.Content.ReadAsAsync<Product>();
+        // Translate to a format compatible with monolith if needed
+        return new Product
+        {
+            Id = newProduct.Id,
+            Name = newProduct.Name,
+            StockQuantity = newProduct.StockQuantity
+        };
+    }
+}</code></pre>
+
+        <p>Updated OrderService using the ACL:</p>
+        <pre><code class="language-csharp">public class OrderService
+{
+    private readonly CatalogAntiCorruptionLayer _catalogAcl;
+    public OrderService(CatalogAntiCorruptionLayer catalogAcl)
+    {
+        _catalogAcl = catalogAcl;
+    }
+
+    public async Task CreateOrder(Order order)
+    {
+        var product = await _catalogAcl.GetProductForOrder(order.ProductId);
+        if (product.StockQuantity < order.Quantity)
+        {
+            throw new InvalidOperationException("Insufficient stock.");
+        }
+        // Save order
+    }
+}</code></pre>
+
+        <p><b>Benefits:</b></p>
+        <ul>
+            <li>Isolates the Order Service from the monolith's legacy model</li>
+            <li>Allows the Catalog Service to evolve independently</li>
+            <li>Handles translation, error handling, and retries in one place</li>
+        </ul>
+
+        <h2>Problem 13: Testing Microservices Migration</h2>
+        <h3>The Problem</h3>
+        <p>Ensuring reliability and functionality during migration requires a comprehensive testing strategy.</p>
+
+        <h3>The Solution: Test-Driven Development with Comprehensive Testing</h3>
+        <h4>Test-Driven Development (TDD) Approach</h4>
+        <ol>
+            <li>Write a failing test for a new API or feature</li>
+            <li>Implement the minimum code to pass the test</li>
+            <li>Refactor and repeat for each endpoint and behavior</li>
+        </ol>
+
+        <h4>API Contracts</h4>
+        <p>Sample contracts for key microservices:</p>
+        <ul>
+            <li><b>Catalog Service:</b>
+                <ul>
+                    <li>GET /api/products/{id}: Returns product details</li>
+                    <li>POST /api/products: Creates a product</li>
+                </ul>
+            </li>
+            <li><b>Order Service:</b>
+                <ul>
+                    <li>POST /api/orders: Creates an order</li>
+                    <li>GET /api/orders/{id}: Returns order details</li>
+                </ul>
+            </li>
+            <li><b>Customer Service:</b>
+                <ul>
+                    <li>POST /api/users: Creates a user</li>
+                    <li>POST /api/auth/login: Authenticates user</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h4>Unit Tests Examples</h4>
+        <p>Catalog Service tests using xUnit:</p>
+        <pre><code class="language-csharp">public class ProductsControllerTests
+{
+    private readonly Mock<CatalogDbContext> _mockDbContext;
+    private readonly ProductsController _controller;
+
+    public ProductsControllerTests()
+    {
+        _mockDbContext = new Mock<CatalogDbContext>();
+        _controller = new ProductsController(_mockDbContext.Object);
+    }
+
+    [Fact]
+    public async Task GetProduct_ValidId_ReturnsProduct()
+    {
+        // Arrange
+        var product = new Product { Id = 1, Name = "Test Product", StockQuantity = 10 };
+        _mockDbContext.Setup(db => db.Products.FindAsync(1)).ReturnsAsync(product);
+
+        // Act
+        var result = await _controller.GetProduct(1);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var returnedProduct = Assert.IsType<Product>(okResult.Value);
+        Assert.Equal(1, returnedProduct.Id);
+    }
+
+    [Fact]
+    public async Task GetProduct_InvalidId_ReturnsNotFound()
+    {
+        // Arrange
+        _mockDbContext.Setup(db => db.Products.FindAsync(99)).ReturnsAsync((Product)null);
+
+        // Act
+        var result = await _controller.GetProduct(99);
+
+        // Assert
+        Assert.IsType<NotFoundResult>(result);
+    }
+}</code></pre>
+
+        <p>Order Service tests:</p>
+        <pre><code class="language-csharp">public class OrderServiceTests
+{
+    private readonly Mock<CatalogAntiCorruptionLayer> _mockCatalogAcl;
+    private readonly OrderService _service;
+
+    public OrderServiceTests()
+    {
+        _mockCatalogAcl = new Mock<CatalogAntiCorruptionLayer>();
+        _service = new OrderService(_mockCatalogAcl.Object);
+    }
+
+    [Fact]
+    public async Task CreateOrder_SufficientStock_Succeeds()
+    {
+        // Arrange
+        var order = new Order { ProductId = 1, Quantity = 2 };
+        var product = new Product { Id = 1, StockQuantity = 10 };
+        _mockCatalogAcl.Setup(acl => acl.GetProductForOrder(1)).ReturnsAsync(product);
+
+        // Act
+        await _service.CreateOrder(order);
+
+        // Assert
+        _mockCatalogAcl.Verify(acl => acl.GetProductForOrder(1), Times.Once());
+    }
+
+    [Fact]
+    public async Task CreateOrder_InsufficientStock_ThrowsException()
+    {
+        // Arrange
+        var order = new Order { ProductId = 1, Quantity = 20 };
+        var product = new Product { Id = 1, StockQuantity = 10 };
+        _mockCatalogAcl.Setup(acl => acl.GetProductForOrder(1)).ReturnsAsync(product);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreateOrder(order));
+    }
+}</code></pre>
+
+        <h4>Integration Test Scripts (PowerShell)</h4>
+        <p>Catalog Service integration tests:</p>
+        <pre><code class="language-powershell"># Test-CatalogService.ps1
+$baseUrl = "http://localhost:5001"  # Catalog Service URL
+
+# Test GET /api/products/{id}
+$response = Invoke-RestMethod -Uri "$baseUrl/api/products/1" -Method Get -ErrorAction Stop
+if ($response.Id -eq 1 -and $response.Name -ne $null) {
+    Write-Host "GET /api/products/1: Success"
+} else {
+    Write-Host "GET /api/products/1: Failed"
+    exit 1
+}
+
+# Test POST /api/products
+$body = @{ Name = "Test Product"; StockQuantity = 10 } | ConvertTo-Json
+$response = Invoke-RestMethod -Uri "$baseUrl/api/products" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+if ($response.StatusCode -eq 201) {
+    Write-Host "POST /api/products: Success"
+} else {
+    Write-Host "POST /api/products: Failed"
+    exit 1
+}</code></pre>
+
+        <p>Order Service integration tests:</p>
+        <pre><code class="language-powershell"># Test-OrderService.ps1
+$baseUrl = "http://localhost:5002"  # Order Service URL
+
+# Test POST /api/orders
+$body = @{ ProductId = 1; Quantity = 2 } | ConvertTo-Json
+$response = Invoke-RestMethod -Uri "$baseUrl/api/orders" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+if ($response.StatusCode -eq 201) {
+    Write-Host "POST /api/orders: Success"
+} else {
+    Write-Host "POST /api/orders: Failed"
+    exit 1
+}
+
+# Test GET /api/orders/{id}
+$response = Invoke-RestMethod -Uri "$baseUrl/api/orders/1" -Method Get -ErrorAction Stop
+if ($response.Id -eq 1) {
+    Write-Host "GET /api/orders/1: Success"
+} else {
+    Write-Host "GET /api/orders/1: Failed"
+    exit 1
+}</code></pre>
+
+        <p>Customer Service integration tests:</p>
+        <pre><code class="language-powershell"># Test-CustomerService.ps1
+$baseUrl = "http://localhost:5003"  # Customer Service URL
+
+# Test POST /api/users
+$body = @{ Name = "Test User"; Email = "test@example.com" } | ConvertTo-Json
+$response = Invoke-RestMethod -Uri "$baseUrl/api/users" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+if ($response.StatusCode -eq 201) {
+    Write-Host "POST /api/users: Success"
+} else {
+    Write-Host "POST /api/users: Failed"
+    exit 1
+}
+
+# Test POST /api/auth/login
+$body = @{ Email = "test@example.com"; Password = "password" } | ConvertTo-Json
+$response = Invoke-RestMethod -Uri "$baseUrl/api/auth/login" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+if ($response.Token -ne $null) {
+    Write-Host "POST /api/auth/login: Success"
+} else {
+    Write-Host "POST /api/auth/login: Failed"
+    exit 1
+}</code></pre>
+
+        <h4>TDD and Design Aspects</h4>
+        <ul>
+            <li><b>Write Tests First:</b> Start with failing unit tests and integration scripts</li>
+            <li><b>Cover All Contracts:</b> Tests validate all APIs across services</li>
+            <li><b>Edge Cases:</b> Include tests for invalid IDs, insufficient stock, etc.</li>
+            <li><b>Automation:</b> Run scripts in CI/CD pipelines for continuous validation</li>
+            <li><b>Mocking:</b> Use Moq for unit tests to mock dependencies</li>
+        </ul>
+
+        <h2>Next Steps</h2>
+        <ul>
+            <li>Identify microservice boundaries (e.g., Catalog, Orders, Users, etc.).</li>
+            <li>For each vertical slice, extract code, DB tables, and UI components.</li>
+            <li>Refactor shared code/dependencies and introduce APIs/events for cross-service needs.</li>
+            <li>Plan and execute data migration, including breaking up existing schema and bootstrapping new databases.</li>
+            <li>Apply the Strangler Pattern for incremental migration.</li>
+        </ul>
+    </div>
+</body>
+</html>

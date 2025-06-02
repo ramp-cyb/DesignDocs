@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dependency Graph - SimplCommerce Microservices</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true });
+    </script>
+</head>
+<body>
+    <nav class="main-nav">
+        <a href="MigrationAnalysis.html">Analysis</a>
+        <a href="MigrationPlan.html">Migration Plan</a>
+        <a href="DesignOverview.html">Design Overview</a>
+        <a href="ExecutionPlan.html">Execution Plan</a>
+        <a href="DependencyGraph.html">Dependency Graph</a>
+        <a href="MigrationExamples.html">Migration Examples</a>
+        <a href="StranglerTDD.html">Strangler & TDD Guide</a>
+        <a href="DependencyGraph.html">Dependency Graph</a>
+    </nav>
+    <div class="container">
+        <h1>Class/Function Call Dependency Graph</h1>
+        <p>This graph visualizes the relationships between controllers, services, and repositories across major modules in the SimplCommerce monolith. Cross-module dependencies are highlighted to inform microservice boundaries and refactoring needs.</p>
+        <div class="note">Hover or tap nodes for details. Cross-module calls are shown with colored arrows.</div>
+        <div class="mermaid">
+        graph TD
+          subgraph Catalog
+            CatalogController --> ProductService
+            CatalogController --> CategoryService
+            ProductService --> IRepository_Product
+            ProductService --> EntityService
+            CategoryService --> IRepository_Category
+            CategoryService --> EntityService
+          end
+
+          subgraph Orders
+            OrdersController --> OrderService
+            OrderService --> IRepository_Order
+            OrderService --> ICouponService
+            OrderService --> ICheckoutService
+            OrderService --> IProductPricingService
+          end
+
+          subgraph Inventory
+            InventoryController --> StockService
+            StockService --> IRepository_Stock
+            StockService --> IRepository_Product
+            StockService --> IMediator
+          end
+
+          subgraph Core
+            UserController --> UserService
+            UserService --> IRepository_User
+            UserService --> EntityService
+            VendorService --> IRepository_Vendor
+            VendorService --> EntityService
+          end
+
+          subgraph Shipping
+            ShipmentApiController --> ShipmentService
+            ShipmentService --> IRepository_Shipment
+            ShipmentService --> IRepository_OrderItem
+            ShipmentService --> IRepository_ShipmentItem
+            ShipmentService --> IRepository_Stock
+          end
+
+          %% Cross-module dependencies
+          OrderService -- uses --> ICouponService
+          OrderService -- uses --> ICheckoutService
+          OrderService -- uses --> IProductPricingService
+          StockService -- uses --> IRepository_Product
+          ShipmentService -- uses --> IRepository_OrderItem
+          ShipmentService -- uses --> IRepository_Stock
+          ProductService -- uses --> EntityService
+          CategoryService -- uses --> EntityService
+          VendorService -- uses --> EntityService
+        </div>
+        <h2>Explanation</h2>
+        <ul>
+            <li><b>Controllers</b> depend on <b>Services</b> for business logic.</li>
+            <li><b>Services</b> depend on <b>Repositories</b> for data access and may call other services (including cross-module).</li>
+            <li><b>Repositories</b> are generic and injected via DI.</li>
+            <li>Cross-module dependencies (e.g., Orders → Pricing, Catalog, Checkouts) are key migration points for microservice boundaries.</li>
+        </ul>
+        <p>Copilot can help refactor these dependencies by generating new service interfaces, API contracts, and data access layers for each microservice.</p>
+    </div>
+</body>
+</html>
