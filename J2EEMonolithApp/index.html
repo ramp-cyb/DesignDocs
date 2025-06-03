@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Order Services - Modernization Analysis</title>
+    <style>
+        /* Base styles */
+        :root {
+            --primary-color: #0062cc;
+            --secondary-color: #0097a7;
+            --accent-color: #e3f2fd;
+            --text-color: #333;
+            --light-bg: #f5f7fa;
+            --border-color: #ddd;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #0062cc, #0097a7);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+        }
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-content {
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.2em;
+            margin: 10px 0;
+        }
+        h2 {
+            color: #0062cc;
+            border-bottom: 2px solid #0097a7;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+        h3 {
+            color: #0097a7;
+            margin-top: 25px;
+        }
+        h4 {
+            color: #00796b;
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+
+        /* Tab styling */
+        .tab {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding: 10px 0;
+            background-color: #f5f7fa;
+        }
+        .tab button {
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 20px;
+            transition: all 0.3s;
+            font-size: 15px;
+            min-width: 120px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .tab button:hover {
+            background-color: #e3f2fd;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        .tab button.active {
+            background-color: #0062cc;
+            color: white;
+            border-color: #0062cc;
+            box-shadow: 0 2px 5px rgba(0,98,204,0.3);
+            font-weight: 500;
+        }
+        .tab button.active::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -10px;
+            border-width: 8px;
+            border-style: solid;
+            border-color: #0062cc transparent transparent transparent;
+        }
+        .tabcontent {
+            display: none;
+            padding: 25px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            animation: fadeEffect 0.5s;
+            margin-top: 10px;
+        }
+        @keyframes fadeEffect {
+            from {opacity: 0; transform: translateY(5px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+        
+        /* Responsive styling for smaller screens */
+        @media (max-width: 768px) {
+            .tab {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 5px;
+                justify-content: center;
+            }
+            .tab button {
+                flex: 0 0 calc(50% - 10px);
+                min-width: 0;
+                font-size: 14px;
+                padding: 8px 10px;
+                box-sizing: border-box;
+                text-align: center;
+            }
+            .tabcontent {
+                padding: 15px;
+            }
+            h2 {
+                font-size: 1.6em;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .tab button {
+                flex: 0 0 100%;
+                margin-bottom: 5px;
+            }
+        }
+
+        /* Table styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #0062cc;
+            color: white;
+            font-weight: 500;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+        .diagram {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left; /* Changed from center to left */
+            overflow: hidden;
+        }
+        .diagram pre {
+            text-align: left; /* Explicit alignment for pre elements */
+            margin-left: 0; /* Ensure no margin pushes it from the left */
+            white-space: pre-wrap; /* Allow text to wrap */
+        }
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .card {
+            background-color: white;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .summary-box {
+            background-color: #e3f2fd;
+            border-left: 4px solid #0062cc;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        /* Priority indicators */
+        .priority {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 20px;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
+        }
+        .high {
+            background-color: #ffcdd2;
+            color: #c62828;
+        }
+        .medium {
+            background-color: #fff9c4;
+            color: #f57f17;
+        }
+        .low {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        /* Tab container */
+        .tab-container {
+            max-width: 1200px; 
+            margin: 0 auto;
+        }
+
+        /* External diagrams */
+        .diagram iframe {
+            width: 100%;
+            border: none;
+            height: auto;
+            min-height: 600px;
+            overflow: hidden;
+        }
+        
+        /* Markdown code block styling */
+        .markdown-code {
+            background-color: #282c34;
+            border-radius: 5px;
+            margin: 15px 0;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .markdown-code code {
+            display: block;
+            padding: 16px;
+            padding-top: 35px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.45;
+            color: #d4d4d4;
+            white-space: pre;
+            tab-size: 4;
+            background-color: #1e1e1e;
+        }
+        
+        .code-language-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #323232;
+            color: #d4d4d4;
+            border-bottom-left-radius: 4px;
+            z-index: 10;
+        }
+        
+        /* Top bar in code editor to simulate IDE */
+        .markdown-code::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 25px;
+            background-color: #252526;
+            border-bottom: 1px solid #1e1e1e;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+        
+        /* Add mock IDE controls */
+        .markdown-code::after {
+            content: '● ● ●';
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            color: #666;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+        
+        /* Syntax highlighting for code */
+        .markdown-code .keyword { color: #569cd6; }
+        .markdown-code .string { color: #ce9178; }
+        .markdown-code .comment { color: #6a9955; }
+        .markdown-code .class-name, .markdown-code .type { color: #4ec9b0; }
+        .markdown-code .method { color: #dcdcaa; }
+        
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            background-color: #263238;
+            color: #eceff1;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+            .tab button {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <h1>Customer Order Services Modernization</h1>
+                <p>Comprehensive Analysis and Migration Strategy</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="summary-box">
+            <p>This document provides a comprehensive analysis of the Customer Order Services monolithic application and outlines a strategic approach to modernize it into a microservices-based architecture. The analysis covers the current state assessment, proposed architecture, migration strategy using the Strangler Pattern with Anti-Corruption Layer, and testing recommendations.</p>
+        </div>
+        
+        <div class="tab-container">
+            <div class="tab">
+                <button class="tablinks active" onclick="openTab(event, 'overview')">Application Overview</button>
+                <button class="tablinks" onclick="openTab(event, 'architecture')">Dependency Analysis</button>
+                <button class="tablinks" onclick="openTab(event, 'database')">Database ER Model</button>
+                <button class="tablinks" onclick="openTab(event, 'microservices')">Microservices Architecture</button>
+                <button class="tablinks" onclick="openTab(event, 'migration')">Migration Strategy</button>
+                <button class="tablinks" onclick="openTab(event, 'frontend')">Frontend Modernization</button>
+                <button class="tablinks" onclick="openTab(event, 'testing')">Testing Strategy</button>
+                <button class="tablinks" onclick="openTab(event, 'challenges')">Challenges & Considerations</button>
+                <button class="tablinks" onclick="openTab(event, 'conclusion')">Conclusion</button>
+            </div>
+
+            <div id="overview" class="tabcontent" style="display: block;">
+                <h2>Application Overview</h2>
+                <div class="card">
+                    <h3>Current Application Architecture</h3>
+                    <div class="diagram">
+                        <iframe src="current-architecture.html" title="Current Architecture Diagram"></iframe>
+                    </div>
+                    
+                    <p>The Customer Order Services application is a traditional JavaEE monolithic e-commerce application running on WebSphere Application Server 8.5.5. It's a store-front shopping application that was built during the early days of Web 2.0 and follows the classic 3-Tier Architecture model.</p>
+                    
+                    <p>Users interact directly with a browser-based interface to browse products, manage their shopping cart, and submit orders. The application provides an online shopping experience with product catalog browsing, customer account management, and order processing capabilities.</p>
+                    
+                    <table>
+                        <tr>
+                            <th>Component</th>
+                            <th>Technology</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td>Backend</td>
+                            <td>JavaEE, EJB 3.0, JPA 2.0</td>
+                            <td>Core business logic and data access layer</td>
+                        </tr>
+                        <tr>
+                            <td>API Layer</td>
+                            <td>JAX-RS 1.1</td>
+                            <td>REST API endpoints for frontend access</td>
+                        </tr>
+                        <tr>
+                            <td>Frontend</td>
+                            <td>Dojo Toolkit JavaScript</td>
+                            <td>User interface components</td>
+                        </tr>
+                        <tr>
+                            <td>Database</td>
+                            <td>IBM DB2</td>
+                            <td>Two databases: ORDERDB and INDB</td>
+                        </tr>
+                        <tr>
+                            <td>Application Server</td>
+                            <td>WebSphere 8.5.5</td>
+                            <td>Hosts the application and provides runtime services</td>
+                        </tr>
+                        <tr>
+                            <td>Security</td>
+                            <td>WebSphere Security</td>
+                            <td>Role-based access with "SecureShopper" role</td>
+                        </tr>
+                    </table>
+                    
+                    <h3>Business Functionality</h3>
+                    <p>The application supports the following key business functions:</p>
+                    <ul>
+                        <li><strong>Customer Management:</strong> Handles both residential and business customers with different attributes and behaviors through an inheritance model</li>
+                        <li><strong>Product Catalog:</strong> Manages products organized in hierarchical categories</li>
+                        <li><strong>Order Processing:</strong> Supports shopping cart functionality, order creation, and order history</li>
+                        <li><strong>Account Management:</strong> Handles customer profiles and shipping addresses</li>
+                    </ul>
+
+                    <h3>Technical Details</h3>
+                    <ul>
+                        <li>The application uses <strong>OpenJPA</strong> as its JPA implementation</li>
+                        <li>Authentication is managed through WebSphere's container security</li>
+                        <li>The REST APIs are structured around three main resource types: Customer, Product, and Category</li>
+                        <li>The application uses JTA (Java Transaction API) for transaction management</li>
+                        <li>Database persistence uses a single JTA data source (jdbc/orderds) for entity mapping</li>
+                    </ul>
+
+                    <h3>Current Application Structure</h3>
+                    <table>
+                        <tr>
+                            <th>Module</th>
+                            <th>Type</th>
+                            <th>Purpose</th>
+                        </tr>
+                        <tr>
+                            <td>CustomerOrderServices</td>
+                            <td>EJB</td>
+                            <td>Business logic and data access layer with JPA entities</td>
+                        </tr>
+                        <tr>
+                            <td>CustomerOrderServicesWeb</td>
+                            <td>WAR</td>
+                            <td>REST API endpoints and web UI components</td>
+                        </tr>
+                        <tr>
+                            <td>CustomerOrderServicesTest</td>
+                            <td>WAR</td>
+                            <td>Integration tests for JPA and JAX-RS components</td>
+                        </tr>
+                        <tr>
+                            <td>CustomerOrderServicesApp</td>
+                            <td>EAR</td>
+                            <td>Enterprise application packaging</td>
+                        </tr>
+                        <tr>
+                            <td>CustomerOrderServicesProject</td>
+                            <td>POM</td>
+                            <td>Maven parent project for build configuration</td>
+                        </tr>
+                    </table>
+                    
+                    <h3>Domain Model Overview</h3>
+                    <table>
+                        <tr>
+                            <th>Domain Entity</th>
+                            <th>Description</th>
+                            <th>Key Relationships</th>
+                        </tr>
+                        <tr>
+                            <td>AbstractCustomer</td>
+                            <td>Base customer class with common attributes</td>
+                            <td>Has Orders, Addresses</td>
+                        </tr>
+                        <tr>
+                            <td>BusinessCustomer</td>
+                            <td>Customer type for business accounts</td>
+                            <td>Extends AbstractCustomer</td>
+                        </tr>
+                        <tr>
+                            <td>ResidentialCustomer</td>
+                            <td>Customer type for individual consumers</td>
+                            <td>Extends AbstractCustomer</td>
+                        </tr>
+                        <tr>
+                            <td>Order</td>
+                            <td>Represents customer orders</td>
+                            <td>Contains LineItems, belongs to Customer</td>
+                        </tr>
+                        <tr>
+                            <td>Product</td>
+                            <td>Represents items that can be purchased</td>
+                            <td>Belongs to Categories, referenced in LineItems</td>
+                        </tr>
+                        <tr>
+                            <td>Category</td>
+                            <td>Product categorization</td>
+                            <td>Contains Products, may have parent Category</td>
+                        </tr>
+                    </table>
+                    
+                    <h3>Architectural Challenges</h3>
+                    <p>The current architecture presents several challenges:</p>
+                    <ul>
+                        <li>UI and API layers are tightly coupled in the same WAR module</li>
+                        <li>Business logic is distributed between service implementations and REST resources</li>
+                        <li>Application relies on container-specific features from WebSphere</li>
+                        <li>Outdated frontend technology (Dojo) with limited mobile support</li>
+                        <li>Tight coupling between domain entities due to JPA relationships</li>
+                        <li>Limited scalability due to monolithic deployment model</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="architecture" class="tabcontent">
+                <h2>Dependency Analysis</h2>
+                <div class="card">
+                    <h3>Module Dependencies</h3>
+                    <div class="diagram">
+                        <pre>
+CustomerOrderServicesProject (Parent POM)
+├── CustomerOrderServices (EJB)
+│   ├── Dependencies:
+│   │   ├── javax:javaee-api:7.0
+│   │   └── org.codehaus.jackson:jackson-mapper-asl:1.7.1
+├── CustomerOrderServicesWeb (WAR)
+│   ├── Dependencies:
+│   │   ├── CustomerOrderServices (EJB)
+│   │   ├── javaee:javaee-api:5
+│   │   ├── com.ibm.websphere.appserver.api:com.ibm.websphere.appserver.api.jaxrs:1.0.10
+│   │   ├── com.ibm.websphere.appserver.api:com.ibm.websphere.appserver.api.json:1.0
+│   │   ├── javax.ws.rs:jsr311-api:1.1.1
+│   │   └── org.codehaus.jackson:jackson-jaxrs:1.7.1
+├── CustomerOrderServicesTest (WAR)
+│   ├── Dependencies:
+│   │   ├── CustomerOrderServices (EJB)
+│   │   ├── org.dbunit:dbunit:2.2
+│   │   ├── com.ibm.websphere.appserver.api:com.ibm.websphere.appserver.api.jaxrs:1.0.10
+│   │   ├── com.ibm.websphere.appserver.api:com.ibm.websphere.appserver.api.json:1.0
+│   │   └── org.codehaus.jackson:jackson-jaxrs:1.7.1
+└── CustomerOrderServicesApp (EAR)
+    ├── Dependencies:
+        ├── CustomerOrderServices (EJB)
+        ├── CustomerOrderServicesWeb (WAR)
+        └── CustomerOrderServicesTest (WAR)
+                        </pre>
+                    </div>
+                    
+                    <h3>Service Layer and Component Dependencies</h3>
+                    <div class="diagram">
+                        <pre>
+[REST API Layer]
+CustomerOrderResource ────────┐
+ProductResource       ────────┼─┐
+CategoryResource      ────────┘ │
+                                │
+                                ▼
+[Service Layer]
+CustomerOrderServices (Interface)
+├── CustomerOrderServicesImpl (Implementation)
+ProductSearchService (Interface)
+├── ProductSearchServiceImpl (Implementation)
+                                │
+                                ▼
+[Domain Model Layer]
+├── AbstractCustomer
+│   ├── BusinessCustomer
+│   └── ResidentialCustomer
+├── Order
+│   └── LineItem
+├── Product
+└── Category
+                                │
+                                ▼
+[Persistence Layer]
+EntityManager (JPA)
+                                │
+                                ▼
+[Database Layer]
+├── ORDERDB (For customer and order data)
+└── INDB (For inventory data)
+                        </pre>
+                    </div>
+                    
+                    <h3>REST Endpoint Dependencies</h3>
+                    <table>
+                        <tr>
+                            <th>Endpoint</th>
+                            <th>Purpose</th>
+                            <th>Related Domain</th>
+                        </tr>
+                        <tr>
+                            <td>/Customer/Info</td>
+                            <td>Gets customer information</td>
+                            <td>Customer Management</td>
+                        </tr>
+                        <tr>
+                            <td>/Customer/Address</td>
+                            <td>Manages customer addresses</td>
+                            <td>Customer Management</td>
+                        </tr>
+                        <tr>
+                            <td>/Customer/OpenOrder</td>
+                            <td>Gets customer's open order</td>
+                            <td>Order Processing</td>
+                        </tr>
+                        <tr>
+                            <td>/Customer/OpenOrder/LineItem</td>
+                            <td>Adds line items to open order</td>
+                            <td>Order Processing</td>
+                        </tr>
+                        <tr>
+                            <td>/Customer/OpenOrder/LineItem/{productId}</td>
+                            <td>Deletes line item from order</td>
+                            <td>Order Processing</td>
+                        </tr>
+                        <tr>
+                            <td>/Customer/Orders</td>
+                            <td>Gets customer orders history</td>
+                            <td>Order Processing</td>
+                        </tr>
+                        <tr>
+                            <td>/Product/{id}</td>
+                            <td>Gets product information</td>
+                            <td>Product Catalog</td>
+                        </tr>
+                        <tr>
+                            <td>/Category/{id}</td>
+                            <td>Gets category information</td>
+                            <td>Product Catalog</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="database" class="tabcontent">
+                <h2>Database Entity-Relationship Model</h2>
+                <div class="card">
+                    <div class="diagram">
+                        <iframe src="er-diagram.html" title="Database ER Diagram"></iframe>
+                    </div>
+                    
+                    <h3>Key Database Relationships</h3>
+                    <table>
+                        <tr>
+                            <th>Relationship</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td>Customer to Orders</td>
+                            <td>1:N</td>
+                            <td>A customer can have multiple orders</td>
+                        </tr>
+                        <tr>
+                            <td>Customer to Open Order</td>
+                            <td>1:1</td>
+                            <td>A customer can have one current open order</td>
+                        </tr>
+                        <tr>
+                            <td>Order to Line Items</td>
+                            <td>1:N</td>
+                            <td>An order can contain multiple line items</td>
+                        </tr>
+                        <tr>
+                            <td>Line Item to Product</td>
+                            <td>N:1</td>
+                            <td>Each line item references exactly one product</td>
+                        </tr>
+                        <tr>
+                            <td>Product to Categories</td>
+                            <td>M:N</td>
+                            <td>A product can belong to multiple categories</td>
+                        </tr>
+                        <tr>
+                            <td>Category to Parent Category</td>
+                            <td>N:1</td>
+                            <td>Categories can have a hierarchical structure</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="microservices" class="tabcontent">
+                <h2>Proposed Microservices Architecture</h2>
+                <div class="card">
+                    <div class="diagram">
+                        <iframe src="microservices-architecture.html" title="Microservices Architecture Diagram"></iframe>
+                    </div>
+                    
+                    <h3>Recommended Microservices</h3>
+                    <table>
+                        <tr>
+                            <th>Microservice</th>
+                            <th>Bounded Context</th>
+                            <th>Priority</th>
+                            <th>Key Domain Classes</th>
+                            <th>Database Tables</th>
+                        </tr>
+                        <tr>
+                            <td>Customer Management</td>
+                            <td>Managing customer profiles, addresses, and authentication</td>
+                            <td><span class="priority medium">Medium</span></td>
+                            <td>AbstractCustomer, BusinessCustomer, ResidentialCustomer, Address</td>
+                            <td>CUSTOMER, CONTACT_NUMBERS, SHIPPING_ADDRESS, FAVORITES, CREDIT_INFO</td>
+                        </tr>
+                        <tr>
+                            <td>Product Catalog</td>
+                            <td>Product information, categorization, and searching</td>
+                            <td><span class="priority high">High</span></td>
+                            <td>Product, Category, ProductSearchService</td>
+                            <td>PRODUCT, CATEGORY, PROD_CAT</td>
+                        </tr>
+                        <tr>
+                            <td>Inventory Management</td>
+                            <td>Stock levels, inventory updates, and supplier information</td>
+                            <td><span class="priority medium">Medium</span></td>
+                            <td>New inventory classes needed</td>
+                            <td>PRODUCT (INDB), SUPPLIER</td>
+                        </tr>
+                        <tr>
+                            <td>Order Processing</td>
+                            <td>Cart management, order creation, order status updates</td>
+                            <td><span class="priority low">Low</span></td>
+                            <td>Order, LineItem, LineItemId</td>
+                            <td>ORDERS, LINE_ITEM, ORDER_REC</td>
+                        </tr>
+                        <tr>
+                            <td>Payment Processing</td>
+                            <td>Payment methods, payment processing, and verification</td>
+                            <td><span class="priority low">Low</span></td>
+                            <td>New payment classes needed</td>
+                            <td>CREDIT_INFO (restructured)</td>
+                        </tr>
+                        <tr>
+                            <td>Authentication and Authorization</td>
+                            <td>User authentication, role-based access control</td>
+                            <td><span class="priority medium">Medium</span></td>
+                            <td>New security classes needed</td>
+                            <td>New security tables</td>
+                        </tr>
+                    </table>
+
+                    <h3>Technical Services / Chassis Components</h3>
+                    <table>
+                        <tr>
+                            <th>Component</th>
+                            <th>Purpose</th>
+                            <th>Implementation Options</th>
+                        </tr>
+                        <tr>
+                            <td>API Gateway</td>
+                            <td>Request routing, composition, client-specific APIs</td>
+                            <td>Kong, Netflix Zuul, Spring Cloud Gateway</td>
+                        </tr>
+                        <tr>
+                            <td>Service Discovery</td>
+                            <td>Dynamic service registration and discovery</td>
+                            <td>Consul, Netflix Eureka, Kubernetes Service Discovery</td>
+                        </tr>
+                        <tr>
+                            <td>Configuration Management</td>
+                            <td>Centralized, dynamic configuration</td>
+                            <td>Spring Cloud Config, HashiCorp Consul, Kubernetes ConfigMaps</td>
+                        </tr>
+                        <tr>
+                            <td>Monitoring & Observability</td>
+                            <td>Performance monitoring, issue detection</td>
+                            <td>Prometheus + Grafana, ELK Stack, DataDog</td>
+                        </tr>
+                        <tr>
+                            <td>Distributed Tracing</td>
+                            <td>Trace request flows across services</td>
+                            <td>Jaeger, Zipkin, AWS X-Ray</td>
+                        </tr>
+                        <tr>
+                            <td>Message Broker</td>
+                            <td>Asynchronous communication, event distribution</td>
+                            <td>Apache Kafka, RabbitMQ, AWS SQS/SNS</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="migration" class="tabcontent">
+                <h2>Migration Strategy</h2>
+                <div class="card">
+                    <div class="diagram">
+                        <iframe src="migration-strategy.html" title="Migration Strategy Diagram"></iframe>
+                    </div>
+
+                    <h3>Anti-Corruption Layer (ACL) Architecture</h3>
+
+                    <p>The ACL is critical for successful implementation of the Strangler Pattern. It creates a clean separation of concerns while allowing for gradual migration:</p>
+                    
+                    <table>
+                        <tr>
+                            <th>Component Type</th>
+                            <th>Purpose</th>
+                            <th>Example</th>
+                        </tr>
+                        <tr>
+                            <td>Translators</td>
+                            <td>Convert between monolith and microservice data models</td>
+                            <td>ProductTranslator, CustomerTranslator</td>
+                        </tr>
+                        <tr>
+                            <td>Facades</td>
+                            <td>Provide clean interfaces for microservices to call monolith functionality</td>
+                            <td>CustomerOrderFacade, ProductCatalogFacade</td>
+                        </tr>
+                        <tr>
+                            <td>Adapters</td>
+                            <td>Allow monolith to call microservices using familiar patterns</td>
+                            <td>ProductCatalogAdapter, CustomerProfileAdapter</td>
+                        </tr>
+                    </table>
+                    
+                    <h4>ACL Communication Patterns</h4>
+                    
+                    <pre class="markdown-code"><code>```java
+// Example of implementing facades for microservice to monolith calls
+@RestController
+@RequestMapping("/api/legacy")
+public class LegacyOrderFacade {
+    @Autowired
+    private OrderService orderService; // Monolith service
+    @Autowired
+    private OrderTranslator translator;
+    
+    // Expose monolith functionality via REST API for microservices
+    @GetMapping("/orders/{customerId}")
+    public ResponseEntity<List<OrderDTO>> getCustomerOrders(@PathVariable("customerId") long customerId) {
+        List<Order> orders = orderService.getOrdersForCustomer(customerId);
+        
+        List<OrderDTO> dtos = orders.stream()
+            .map(translator::toDto)
+            .collect(Collectors.toList());
+            
+        return ResponseEntity.ok(dtos);
+    }
+}
+
+// REST Client configuration for microservices
+@Configuration
+public class RestClientConfig {
+    @Bean
+    public RestTemplate restTemplate() {
+        RestTemplate template = new RestTemplate();
+        template.setErrorHandler(new RestTemplateErrorHandler());
+        template.setInterceptors(
+            Collections.singletonList(new RestTemplateHeaderInterceptor())
+        );
+        return template;
+    }
+    
+    // Interceptor to propagate correlation IDs and security context
+    private class RestTemplateHeaderInterceptor implements ClientHttpRequestInterceptor {
+        @Override
+        public ClientHttpResponse intercept(HttpRequest request, byte[] body, 
+                                           ClientHttpRequestExecution execution) throws IOException {
+            
+            HttpServletRequest currentRequest = 
+                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+                
+            // Propagate headers for distributed tracing
+            String correlationId = currentRequest.getHeader("X-Correlation-ID");
+            if (correlationId != null) {
+                request.getHeaders().set("X-Correlation-ID", correlationId);
+            }
+            
+            // Propagate authentication context
+            String authHeader = currentRequest.getHeader("Authorization");
+            if (authHeader != null) {
+                request.getHeaders().set("Authorization", authHeader);
+            }
+            
+            return execution.execute(request, body);
+        }
+    }
+}
+```</code></pre>
+                    
+                    <h4>Benefits of Our Strangler Pattern Approach</h4>
+                    <ul>
+                        <li><strong>Risk Mitigation</strong>: Gradual replacement reduces the risk compared to a full rewrite</li>
+                        <li><strong>Continuous Delivery</strong>: We can deliver business value incrementally</li>
+                        <li><strong>Reversibility</strong>: Feature toggles and fallbacks allow quick rollback if issues arise</li>
+                        <li><strong>Domain-Driven Design</strong>: Each microservice maps to a well-defined bounded context</li>
+                        <li><strong>Technology Modernization</strong>: We can adopt modern frameworks (Quarkus) and cloud-native patterns</li>
+                        <li><strong>Learning & Adaptation</strong>: Each phase builds on lessons from previous extractions</li>
+                    </ul>
+
+                    <h3>Strangler Pattern Implementation Details</h3>
+                    <p>The Strangler Pattern, popularized by Martin Fowler, allows us to gradually replace functionality in our monolith with new microservices. The Anti-Corruption Layer (ACL) is key to making this work smoothly, creating a boundary between the old and new systems. Our implementation follows these critical principles:</p>
+                    
+                    <h4>1. API Gateway Implementation</h4>
+                    <p>We'll implement an API Gateway using Spring Cloud Gateway to route requests appropriately between the monolith and new microservices:</p>
+                    
+                    <pre class="markdown-code"><code>```java
+@Configuration
+public class ApiGatewayRoutes {
+    @Bean
+    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
+        return builder.routes()
+            // Route product catalog requests to new microservice
+            .route("product_catalog_route", r -> r.path("/api/products/**", "/api/categories/**")
+                .uri("lb://product-catalog-service"))
+            // Authentication requests to auth service
+            .route("auth_route", r -> r.path("/auth/**")
+                .uri("lb://auth-service"))
+            // All other requests to the monolith
+            .route("monolith_route", r -> r.path("/**")
+                .uri("lb://customer-order-monolith"))
+            .build();
+    }
+}
+```</code></pre>
+
+                    <p>The gateway configuration will evolve as we extract each microservice, with new path patterns being added for each functionality that is migrated. The gateway will also handle cross-cutting concerns:</p>
+                    
+                    <pre class="markdown-code"><code>```java
+@Configuration
+public class GatewayFilters {
+    @Bean
+    public GlobalFilter correlationIdFilter() {
+        return (exchange, chain) -> {
+            String correlationId = exchange.getRequest().getHeaders()
+                .getFirst("X-Correlation-ID");
+                
+            if (correlationId == null) {
+                correlationId = UUID.randomUUID().toString();
+                exchange = exchange.mutate()
+                    .request(r -> r.header("X-Correlation-ID", correlationId))
+                    .build();
+            }
+            
+            return chain.filter(exchange)
+                .then(Mono.fromRunnable(() -> {
+                    exchange.getResponse().getHeaders()
+                        .add("X-Correlation-ID", correlationId);
+                }));
+        };
+    }
+}
+```</code></pre>
+
+                    <h4>2. Anti-Corruption Layer Implementation</h4>
+                    <p>The ACL consists of multiple components working together to translate between the monolith and microservices:</p>
+                    
+                    <pre class="markdown-code"><code>```java
+// In the monolith - ProductCatalogAdapter.java (Outbound Adapter)
+@Service
+public class ProductCatalogAdapter {
+    private final RestTemplate restTemplate;
+    private final String productServiceUrl;
+    private final ProductTranslator translator;
+    
+    public ProductCatalogAdapter(RestTemplate restTemplate, 
+                               @Value("${services.product.url}") String productServiceUrl,
+                               ProductTranslator translator) {
+        this.restTemplate = restTemplate;
+        this.productServiceUrl = productServiceUrl;
+        this.translator = translator;
+    }
+    
+    public Product getProduct(int productId) {
+        // Call microservice
+        ProductDTO dto = restTemplate.getForObject(
+            productServiceUrl + "/api/products/" + productId, 
+            ProductDTO.class
+        );
+        
+        // Map from DTO to existing monolith model
+        return translator.fromDto(dto);
+    }
+    
+    public List<Product> searchProducts(String query) {
+        // Call microservice search endpoint
+        ResponseEntity<List<ProductDTO>> response = restTemplate.exchange(
+            productServiceUrl + "/api/products/search?q={query}",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<List<ProductDTO>>() {},
+            query
+        );
+        
+        return response.getBody().stream()
+            .map(translator::fromDto)
+            .collect(Collectors.toList());
+    }
+}
+```</code></pre>
+
+                    <pre class="markdown-code"><code>```java
+// Translator class in the Anti-Corruption Layer
+@Component
+public class ProductTranslator {
+    @Autowired
+    private CategoryRepository categoryRepository;
+    
+    // Convert from microservice DTO to monolith entity
+    public Product fromDto(ProductDTO dto) {
+        Product product = new Product();
+        product.setProductId(dto.getId());
+        product.setName(dto.getProductName());
+        product.setPrice(new BigDecimal(dto.getPrice()));
+        product.setDescription(dto.getDescription());
+        product.setImagePath(dto.getImageUrl());
+        
+        // Handle relationships differently in the monolith model
+        if (dto.getCategoryId() != null) {
+            Category category = categoryRepository.findById(dto.getCategoryId());
+            product.setCategory(category);
+        }
+        
+        return product;
+    }
+    
+    // Convert from monolith entity to microservice DTO
+    public ProductDTO toDto(Product product) {
+        ProductDTO dto = new ProductDTO();
+        dto.setId(product.getProductId());
+        dto.setProductName(product.getName());
+        dto.setPrice(product.getPrice().doubleValue());
+        dto.setDescription(product.getDescription());
+        dto.setImageUrl(product.getImagePath());
+        
+        if (product.getCategory() != null) {
+            dto.setCategoryId(product.getCategory().getCategoryId());
+        }
+        
+        return dto;
+    }
+}
+```</code></pre>
+
+                    <h4>3. Feature Toggles and Circuit Breakers</h4>
+                    <p>We implement resilient communication patterns with circuit breakers and feature flags to ensure controlled migration and fallbacks:</p>
+                    
+                    <pre class="markdown-code"><code>```java
+@Service
+public class ProductServiceImpl implements ProductService {
+    @Autowired 
+    private FeatureToggleService featureToggleService;
+    @Autowired
+    private ProductRepository legacyRepository; // Original monolith repository
+    @Autowired
+    private ProductCatalogAdapter microserviceAdapter; // New microservice adapter
+    
+    @HystrixCommand(fallbackMethod = "findByIdFallback")
+    @Override
+    public Product findById(int productId) {
+        // Check if new product catalog service is enabled
+        if (featureToggleService.isEnabled("use-product-microservice")) {
+            try {
+                return microserviceAdapter.getProduct(productId);
+            } catch (Exception e) {
+                // Log error and fall back to legacy implementation
+                log.error("Error calling product microservice", e);
+                return findByIdFallback(productId);
+            }
+        } else {
+            return legacyRepository.findById(productId);
+        }
+    }
+    
+    public Product findByIdFallback(int productId) {
+        // Always have a reliable fallback
+        log.warn("Using fallback for product: " + productId);
+        return legacyRepository.findById(productId);
+    }
+}
+```</code></pre>
+
+                    <h4>4. Database Migration with Event-Driven Synchronization</h4>
+                    <p>We implement a combination of CDC (Change Data Capture) and dual-write patterns to ensure data consistency during migration:</p>
+                    
+                    <pre class="markdown-code"><code>```java
+@Component
+public class ProductDataSynchronizer {
+    @Autowired
+    private ProductRepository productRepository;
+    @Autowired 
+    private ProductCatalogAdapter microserviceAdapter;
+    @Autowired
+    private FeatureToggleService featureToggleService;
+    @Autowired
+    private KafkaTemplate<String, ProductUpdateEvent> kafkaTemplate;
+    
+    // Intercept and synchronize product updates
+    @Transactional
+    public void handleProductUpdate(ProductUpdateEvent event) {
+        // Write to monolith database using JPA
+        Product monolithProduct = productRepository.findById(event.getProductId());
+        updateMonolithProduct(monolithProduct, event);
+        productRepository.save(monolithProduct);
+        
+        // Publish event to Kafka for microservice consumption
+        if (featureToggleService.isEnabled("sync-product-data")) {
+            try {
+                // Synchronous update via API for critical real-time data
+                ProductDTO dto = ProductTranslator.toDto(monolithProduct);
+                microserviceAdapter.updateProduct(dto);
+                
+                // Also publish event for asynchronous processing
+                kafkaTemplate.send("product-updates", 
+                    String.valueOf(event.getProductId()), event);
+            } catch (Exception e) {
+                // Log error but don't fail the transaction
+                log.error("Failed to sync product to microservice", e);
+            }
+        }
+    }
+    
+    // Sync data on startup or during recovery
+    @Scheduled(fixedRate = 3600000) // Hourly sync
+    public void scheduledSync() {
+        if (featureToggleService.isEnabled("full-product-sync")) {
+            log.info("Starting full product catalog synchronization");
+            List<Product> products = productRepository.findAll();
+            
+            for (Product product : products) {
+                try {
+                    ProductDTO dto = ProductTranslator.toDto(product);
+                    microserviceAdapter.updateProduct(dto);
+                } catch (Exception e) {
+                    log.error("Sync failed for product: " + product.getProductId(), e);
+                }
+            }
+        }
+    }
+}
+```</code></pre>
+
+                    <h3>Implementing the Strangler Pattern: Microservices Extraction Sequence</h3>
+                    <table>
+                        <tr>
+                            <th>Phase</th>
+                            <th>Microservice</th>
+                            <th>Key Activities</th>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>Product Catalog</td>
+                            <td>
+                                <ul>
+                                    <li>Create microservice with modern stack</li>
+                                    <li>Build ACL components in monolith</li>
+                                    <li>Implement read APIs first, then write operations</li>
+                                    <li>Set up data migration and synchronization</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Customer Profile</td>
+                            <td>
+                                <ul>
+                                    <li>Implement OAuth2/OpenID Connect</li>
+                                    <li>Create customer identity and profile endpoints</li>
+                                    <li>Develop security context propagation</li>
+                                    <li>Migrate customer profile operations</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>Inventory Management</td>
+                            <td>
+                                <ul>
+                                    <li>Define inventory domain models</li>
+                                    <li>Build stock level check functionality</li>
+                                    <li>Implement inventory event publishing</li>
+                                    <li>Integrate with Product Catalog service</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td>Order Processing</td>
+                            <td>
+                                <ul>
+                                    <li>Create order domain models</li>
+                                    <li>Implement shopping cart functionality</li>
+                                    <li>Build order submission process</li>
+                                    <li>Replace atomic transactions with saga pattern</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td>Payment Processing</td>
+                            <td>
+                                <ul>
+                                    <li>Implement PCI-compliant infrastructure</li>
+                                    <li>Create payment processing workflows</li>
+                                    <li>Build tokenization capabilities</li>
+                                    <li>Integrate with Order service</li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="frontend" class="tabcontent">
+                <h2>Frontend Modernization</h2>
+                <div class="card">
+                    <h3>Micro-Frontend Architecture Overview</h3>
+                    <div class="diagram">
+                        <pre>
+[React Shell Application]
+      ↓
+[Micro-Frontend Modules: Product | Customer | Order | Payment]
+      ↓
+[BFF Layer / API Gateway]
+      ↓
+[Backend Microservices]
+                        </pre>
+                    </div>
+
+                    <h3>Implementation Plan</h3>
+                    <table>
+                        <tr>
+                            <th>Phase</th>
+                            <th>Focus Area</th>
+                            <th>Key Activities</th>
+                        </tr>
+                        <tr>
+                            <td>Foundation Setup</td>
+                            <td>Core Infrastructure</td>
+                            <td>
+                                <ul>
+                                    <li>Create React shell application</li>
+                                    <li>Establish BFF (Backend For Frontend) layer</li>
+                                    <li>Implement shared component library</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Feature Migration</td>
+                            <td>Module Development</td>
+                            <td>
+                                <ul>
+                                    <li>Product Catalog Module (First)</li>
+                                    <li>Customer Profile Module (Second)</li>
+                                    <li>Order Management Module (Third)</li>
+                                    <li>Payment Module (Fourth)</li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <h3>Technical Implementation</h3>
+                    <table>
+                        <tr>
+                            <th>Aspect</th>
+                            <th>Approach</th>
+                        </tr>
+                        <tr>
+                            <td>State Management</td>
+                            <td>React Context for shared state, Redux for complex state</td>
+                        </tr>
+                        <tr>
+                            <td>Module Federation</td>
+                            <td>Webpack Module Federation for code-sharing between micro-frontends</td>
+                        </tr>
+                        <tr>
+                            <td>Routing Strategy</td>
+                            <td>Nested routing with React Router, deep-linking support</td>
+                        </tr>
+                        <tr>
+                            <td>Performance Optimization</td>
+                            <td>Code splitting, lazy loading, optimized builds</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="testing" class="tabcontent">
+                <h2>Testing Strategy</h2>
+                <div class="card">
+                    <h3>Testing Approach</h3>
+                    <table>
+                        <tr>
+                            <th>Testing Level</th>
+                            <th>Purpose</th>
+                            <th>Implementation Approach</th>
+                        </tr>
+                        <tr>
+                            <td>Unit Tests</td>
+                            <td>Validate individual components</td>
+                            <td>JUnit, Mockito for new microservices</td>
+                        </tr>
+                        <tr>
+                            <td>Integration Tests</td>
+                            <td>Test interactions between components</td>
+                            <td>Test containers, contract testing</td>
+                        </tr>
+                        <tr>
+                            <td>Component Tests</td>
+                            <td>Validate microservices in isolation</td>
+                            <td>Service virtualization, API testing</td>
+                        </tr>
+                        <tr>
+                            <td>End-to-End Tests</td>
+                            <td>Validate complete business flows</td>
+                            <td>Scenario-based testing across services</td>
+                        </tr>
+                    </table>
+
+                    <h3>Feature Parity Verification</h3>
+                    <table>
+                        <tr>
+                            <th>Technique</th>
+                            <th>Purpose</th>
+                            <th>Implementation</th>
+                        </tr>
+                        <tr>
+                            <td>Functionality Inventory</td>
+                            <td>Create a comprehensive feature checklist</td>
+                            <td>Document APIs, business functions, user workflows</td>
+                        </tr>
+                        <tr>
+                            <td>Golden Master Testing</td>
+                            <td>Compare outputs between systems</td>
+                            <td>Record/replay tools, response comparison</td>
+                        </tr>
+                        <tr>
+                            <td>Shadow Testing</td>
+                            <td>Test both systems with real traffic</td>
+                            <td>Duplicate requests, compare responses</td>
+                        </tr>
+                        <tr>
+                            <td>Feature Flag Testing</td>
+                            <td>Control exposure of new functionality</td>
+                            <td>Selective routing via API Gateway</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="challenges" class="tabcontent">
+                <h2>Challenges and Considerations</h2>
+                <div class="card">
+                    <h3>Decomposition Challenges</h3>
+                    <table>
+                        <tr>
+                            <th>Challenge Area</th>
+                            <th>Key Issues</th>
+                            <th>Mitigation Strategy</th>
+                        </tr>
+                        <tr>
+                            <td>Database Decomposition</td>
+                            <td>
+                                <ul>
+                                    <li>Shared schema and tight coupling</li>
+                                    <li>Data integrity across services</li>
+                                    <li>Migration strategy challenges</li>
+                                </ul>
+                            </td>
+                            <td>
+                                <ul>
+                                    <li>Implement data virtualization initially</li>
+                                    <li>Use Change Data Capture for synchronization</li>
+                                    <li>Gradually move to Database-per-Service pattern</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Transaction Management</td>
+                            <td>
+                                <ul>
+                                    <li>Distributed transactions</li>
+                                    <li>Order processing workflow spanning services</li>
+                                </ul>
+                            </td>
+                            <td>
+                                <ul>
+                                    <li>Implement saga patterns</li>
+                                    <li>Design compensating transactions</li>
+                                    <li>Use eventual consistency where appropriate</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Security and Authentication</td>
+                            <td>
+                                <ul>
+                                    <li>WebSphere security dependence</li>
+                                    <li>Identity propagation between services</li>
+                                </ul>
+                            </td>
+                            <td>
+                                <ul>
+                                    <li>Implement OAuth2/OpenID Connect</li>
+                                    <li>Create JWT-based authentication</li>
+                                    <li>Build proper authorization in each service</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Code Dependencies</td>
+                            <td>
+                                <ul>
+                                    <li>Tight entity relationships</li>
+                                    <li>Shared business logic</li>
+                                </ul>
+                            </td>
+                            <td>
+                                <ul>
+                                    <li>Use domain-driven design principles</li>
+                                    <li>Implement proper abstraction layers</li>
+                                    <li>Extract domain-specific logic carefully</li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="conclusion" class="tabcontent">
+                <h2>Conclusion and Recommendations</h2>
+                <div class="summary-box">
+                    <p>The Customer Order Services application is a good candidate for microservices migration using the Strangler Pattern with an Anti-Corruption Layer. By focusing on one domain at a time, starting with the Product Catalog service, the migration can be executed with minimal risk while maintaining business continuity.</p>
+                    
+                    <p>Key recommendations:</p>
+                    <ul>
+                        <li>Start with the Product Catalog microservice as the first extraction</li>
+                        <li>Implement a robust Anti-Corruption Layer to facilitate communication during migration</li>
+                        <li>Adopt Cloud Native principles and container technologies</li>
+                        <li>Use feature flags to control the rollout of new functionality</li>
+                        <li>Implement comprehensive testing to ensure feature parity</li>
+                        <li>Modernize the frontend incrementally using micro-frontends</li>
+                        <li>Build technical chassis services early to support the microservices ecosystem</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Customer Order Services Modernization Analysis - Generated on June 3, 2025</p>
+    </footer>
+
+    <script>
+        // Tab functionality
+        function openTab(event, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            event.currentTarget.className += " active";
+            
+            // Smooth scroll to the top of the tab content with a slight offset
+            const yOffset = -20; 
+            const element = document.getElementById(tabName);
+            const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            
+            window.scrollTo({top: y, behavior: 'smooth'});
+        }
+
+        // Set default tab open
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show the first tab by default
+            document.getElementsByClassName("tablinks")[0].click();
+            
+            // Process markdown code blocks
+            processMarkdownCodeBlocks();
+        });
+        
+        // Function to process markdown code blocks for better appearance
+        function processMarkdownCodeBlocks() {
+            const codeBlocks = document.querySelectorAll('.markdown-code code');
+            
+            codeBlocks.forEach(block => {
+                // Extract content and remove the triple backticks and language identifier
+                let content = block.textContent;
+                content = content.replace(/```java\n/, '').replace(/```$/, '');
+                
+                // Add language badge
+                const languageBadge = document.createElement('div');
+                languageBadge.className = 'code-language-badge';
+                languageBadge.textContent = 'Java';
+                block.parentNode.insertBefore(languageBadge, block);
+                
+                // Apply syntax highlighting (simplified version)
+                let highlighted = content
+                    // Keywords
+                    .replace(/\b(public|private|protected|class|interface|extends|implements|static|final|void|abstract|enum|return|if|else|try|catch|new|throw|throws|for|while|do|switch|case|break|continue|default|instanceof|super|this|transient|volatile|synchronized|native|strictfp|assert|package|import|true|false|null)\b/g, '<span class="keyword">$1</span>')
+                    // Annotations
+                    .replace(/(@[A-Za-z0-9_]+)/g, '<span class="keyword">$1</span>')
+                    // Strings
+                    .replace(/"([^"\\]*(\\.[^"\\]*)*)"/, '<span class="string">"$1"</span>')
+                    // Comments
+                    .replace(/\/\/(.*)/g, '<span class="comment">// $1</span>')
+                    // Class/Type names (simplified)
+                    .replace(/\b([A-Z][A-Za-z0-9_]*)\b/g, '<span class="class-name">$1</span>');
+                
+                // Update the content
+                block.innerHTML = highlighted;
+            });
+        }
+    </script>
+</body>
+</html>

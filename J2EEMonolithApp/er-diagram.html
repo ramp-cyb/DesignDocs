@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Order Services - Database ER Diagram</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        h1 {
+            color: #0062cc;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .er-diagram {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px auto;
+            width: 90%;
+            overflow: hidden;
+        }
+        .er-diagram svg {
+            max-width: 100%;
+            height: auto;
+            margin: 0;
+            display: block;
+            transform-origin: top left;
+        }
+        .back-link {
+            display: block;
+            margin: 20px auto;
+            text-align: center;
+            color: #0062cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Customer Order Services Database ER Diagram</h1>
+    
+    <div class="er-diagram">
+        <svg width="1000" height="800" viewBox="0 0 1000 800" preserveAspectRatio="xMinYMin meet" xmlns="http://www.w3.org/2000/svg">
+            <!-- Entity: CUSTOMER -->
+            <rect x="100" y="50" width="250" height="180" rx="5" ry="5" fill="#e3f2fd" stroke="#0062cc" stroke-width="2"/>
+            <text x="225" y="30" font-weight="bold" text-anchor="middle" font-size="14">CUSTOMER</text>
+            <line x1="110" y1="80" x2="340" y2="80" stroke="#0062cc" stroke-width="1"/>
+            <text x="120" y="70" font-weight="bold">PK: CUSTOMER_ID (INTEGER)</text>
+            <text x="120" y="100">USERNAME (VARCHAR)</text>
+            <text x="120" y="120">OPEN_ORDER (INTEGER) -> FK</text>
+            <text x="120" y="140">NAME (VARCHAR)</text>
+            <text x="120" y="160">TYPE (VARCHAR)</text>
+            <text x="120" y="180">ADDRESS FIELDS...</text>
+            <text x="120" y="200">TYPE-SPECIFIC FIELDS...</text>
+
+            <!-- Entity: ORDERS -->
+            <rect x="500" y="200" width="250" height="140" rx="5" ry="5" fill="#e3f2fd" stroke="#0062cc" stroke-width="2"/>
+            <text x="625" y="180" font-weight="bold" text-anchor="middle" font-size="14">ORDERS</text>
+            <line x1="510" y1="230" x2="740" y2="230" stroke="#0062cc" stroke-width="1"/>
+            <text x="520" y="220" font-weight="bold">PK: ORDER_ID (INTEGER)</text>
+            <text x="520" y="250">CUSTOMER_ID (INTEGER) -> FK</text>
+            <text x="520" y="270">STATUS (VARCHAR)</text>
+            <text x="520" y="290">VERSION (INTEGER)</text>
+            <text x="520" y="310">SUBMIT_TIME (TIMESTAMP)</text>
+            <text x="520" y="330">TOTAL (DECIMAL)</text>
+
+            <!-- Entity: LINE_ITEM -->
+            <rect x="500" y="400" width="250" height="120" rx="5" ry="5" fill="#e3f2fd" stroke="#0062cc" stroke-width="2"/>
+            <text x="625" y="380" font-weight="bold" text-anchor="middle" font-size="14">LINE_ITEM</text>
+            <line x1="510" y1="430" x2="740" y2="430" stroke="#0062cc" stroke-width="1"/>
+            <text x="520" y="420" font-weight="bold">PK: (ORDER_ID, PRODUCT_ID)</text>
+            <text x="520" y="450">ORDER_ID (INTEGER) -> FK</text>
+            <text x="520" y="470">PRODUCT_ID (INTEGER) -> FK</text>
+            <text x="520" y="490">QUANTITY (BIGINT)</text>
+            <text x="520" y="510">AMOUNT (DECIMAL)</text>
+
+            <!-- Entity: PRODUCT -->
+            <rect x="100" y="400" width="250" height="120" rx="5" ry="5" fill="#e3f2fd" stroke="#0062cc" stroke-width="2"/>
+            <text x="225" y="380" font-weight="bold" text-anchor="middle" font-size="14">PRODUCT</text>
+            <line x1="110" y1="430" x2="340" y2="430" stroke="#0062cc" stroke-width="1"/>
+            <text x="120" y="420" font-weight="bold">PK: PRODUCT_ID (INTEGER)</text>
+            <text x="120" y="450">NAME (VARCHAR)</text>
+            <text x="120" y="470">PRICE (DECIMAL)</text>
+            <text x="120" y="490">DESCRIPTION (VARCHAR)</text>
+            <text x="120" y="510">IMAGE (VARCHAR)</text>
+
+            <!-- Entity: CATEGORY -->
+            <rect x="100" y="600" width="250" height="100" rx="5" ry="5" fill="#e3f2fd" stroke="#0062cc" stroke-width="2"/>
+            <text x="225" y="580" font-weight="bold" text-anchor="middle" font-size="14">CATEGORY</text>
+            <line x1="110" y1="630" x2="340" y2="630" stroke="#0062cc" stroke-width="1"/>
+            <text x="120" y="620" font-weight="bold">PK: CAT_ID (INTEGER)</text>
+            <text x="120" y="650">CAT_NAME (VARCHAR)</text>
+            <text x="120" y="670">PARENT_CAT (INTEGER) -> Self FK</text>
+
+            <!-- Entity: PROD_CAT -->
+            <rect x="500" y="600" width="250" height="100" rx="5" ry="5" fill="#e3f2fd" stroke="#0062cc" stroke-width="2"/>
+            <text x="625" y="580" font-weight="bold" text-anchor="middle" font-size="14">PROD_CAT</text>
+            <line x1="510" y1="630" x2="740" y2="630" stroke="#0062cc" stroke-width="1"/>
+            <text x="520" y="620" font-weight="bold">PK: PC_ID (INTEGER)</text>
+            <text x="520" y="650">CAT_ID (INTEGER) -> FK</text>
+            <text x="520" y="670">PRODUCT_ID (INTEGER) -> FK</text>
+
+            <!-- Relationships -->
+            <!-- Customer to Orders 1:N -->
+            <line x1="225" y1="230" x2="500" y2="260" stroke="#333" stroke-width="2"/>
+            <text x="350" y="230" font-size="12" font-style="italic">1:N</text>
+            <!-- Order to LineItem 1:N -->
+            <line x1="625" y1="340" x2="625" y2="400" stroke="#333" stroke-width="2"/>
+            <text x="635" y="370" font-size="12" font-style="italic">1:N</text>
+            <!-- LineItem to Product N:1 -->
+            <line x1="500" y1="460" x2="350" y2="460" stroke="#333" stroke-width="2"/>
+            <text x="420" y="445" font-size="12" font-style="italic">N:1</text>
+            <!-- Product to ProdCat 1:N -->
+            <line x1="225" y1="520" x2="225" y2="600" stroke="#333" stroke-width="2"/>
+            <line x1="225" y1="560" x2="560" y2="600" stroke="#333" stroke-width="2"/>
+            <text x="400" y="575" font-size="12" font-style="italic">M:N</text>
+            <!-- Category self-relationship -->
+            <path d="M100,650 C50,650 50,600 100,600" stroke="#333" fill="transparent" stroke-width="2"/>
+            <text x="60" y="630" font-size="12" font-style="italic">N:1</text>
+
+            <!-- Legend -->
+            <rect x="750" y="50" width="200" height="100" rx="5" ry="5" fill="#fff" stroke="#333" stroke-width="1"/>
+            <text x="850" y="70" font-weight="bold" text-anchor="middle">Legend</text>
+            <line x1="760" y1="80" x2="940" y2="80" stroke="#333" stroke-width="1"/>
+            <line x1="780" y1="100" x2="830" y2="100" stroke="#333" stroke-width="2"/>
+            <text x="840" y="105" font-size="12">Relationship</text>
+            <rect x="780" y="115" width="15" height="15" fill="#e3f2fd" stroke="#0062cc" stroke-width="2"/>
+            <text x="840" y="127" font-size="12">Entity</text>
+        </svg>
+    </div>
+
+    <a href="index.html" class="back-link">← Back to Main Report</a>
+</body>
+</html>
