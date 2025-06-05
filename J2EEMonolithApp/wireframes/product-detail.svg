@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="600" height="400" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+    <!-- Dialog Header -->
+    <rect x="0" y="0" width="600" height="50" fill="#2196f3" stroke="#ccc" stroke-width="1"/>
+    <text x="300" y="30" text-anchor="middle" font-size="16" font-family="Arial" fill="#fff">Product Name</text>
+
+    <!-- Product Details -->
+    <rect x="0" y="50" width="600" height="350" fill="#fff" stroke="#ccc" stroke-width="1"/>
+    
+    <!-- Product Image -->
+    <rect x="20" y="70" width="200" height="200" fill="#f5f5f5" stroke="#ccc" stroke-width="1"/>
+    <text x="120" y="170" text-anchor="middle" font-size="14" font-family="Arial" fill="#999">Product Image</text>
+
+    <!-- Product Info -->
+    <text x="240" y="90" font-size="14" font-family="Arial" fill="#333">Price: $99.99</text>
+    <text x="240" y="120" font-size="14" font-family="Arial" fill="#333">Description:</text>
+    <text x="240" y="150" font-size="12" font-family="Arial" fill="#666">Product details here...</text>
+
+    <!-- Drag to Cart Section -->
+    <rect x="240" y="190" width="340" height="80" fill="#e3f2fd" stroke="#ccc" stroke-width="1"/>
+    <text x="410" y="230" text-anchor="middle" font-size="14" font-family="Arial" fill="#333">Drop Zone for Cart</text>
+    <text x="410" y="250" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">Drag image here to add to cart</text>
+</svg>

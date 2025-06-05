@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+  </defs>
+  <style>
+    .box { 
+      fill: #fff;
+      stroke: #0062cc;
+      stroke-width: 2;
+      rx: 5;
+      ry: 5;
+    }
+    .title { 
+      fill: #0062cc; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 20px;
+      font-weight: bold;
+      text-anchor: middle;
+    }
+    .entity { 
+      fill: #333; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      font-weight: bold;
+      text-anchor: middle;
+    }
+    .connector { 
+      stroke: #333;
+      stroke-width: 2;
+      marker-end: url(#arrowhead);
+    }
+    .relationship {
+      fill: #0097a7;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 12px;
+      font-style: italic;
+    }
+    .inheritance {
+      stroke: #333;
+      stroke-width: 2;
+      stroke-dasharray: 5,3;
+    }
+  </style>
+  
+  <!-- Diagram Border -->
+  <rect x="10" y="10" width="780" height="580" fill="white" stroke="#0062cc" stroke-width="2" rx="10" ry="10"/>
+  
+  <!-- Diagram Title -->
+  <text x="400" y="40" class="title">DOMAIN MODEL RELATIONSHIPS</text>
+  
+  <!-- AbstractCustomer -->
+  <rect x="320" y="70" width="160" height="40" class="box"/>
+  <text x="400" y="95" class="entity">AbstractCustomer</text>
+  
+  <!-- Business Customer -->
+  <rect x="150" y="170" width="160" height="40" class="box"/>
+  <text x="230" y="195" class="entity">BusinessCustomer</text>
+  
+  <!-- Residential Customer -->
+  <rect x="490" y="170" width="160" height="40" class="box"/>
+  <text x="570" y="195" class="entity">ResidentialCustomer</text>
+  
+  <!-- Inheritance lines -->
+  <line x1="400" y1="110" x2="400" y2="145" stroke="#333" stroke-width="2"/>
+  <line x1="400" y1="145" x2="230" y2="145" stroke="#333" stroke-width="2"/>
+  <line x1="400" y1="145" x2="570" y2="145" stroke="#333" stroke-width="2"/>
+  <line x1="230" y1="145" x2="230" y2="170" stroke="#333" stroke-width="2"/>
+  <line x1="570" y1="145" x2="570" y2="170" stroke="#333" stroke-width="2"/>
+  
+  <!-- Address -->
+  <rect x="150" y="260" width="160" height="40" class="box"/>
+  <text x="230" y="285" class="entity">Address</text>
+  
+  <!-- Contact Info -->
+  <rect x="490" y="260" width="160" height="40" class="box"/>
+  <text x="570" y="285" class="entity">Contact Info</text>
+  
+  <!-- Customer has Address relationship -->
+  <line x1="230" y1="210" x2="230" y2="260" class="connector"/>
+  <text x="245" y="235" class="relationship">has</text>
+  
+  <!-- Customer has Contact Info relationship -->
+  <line x1="570" y1="210" x2="570" y2="260" class="connector"/>
+  <text x="585" y="235" class="relationship">has</text>
+  
+  <!-- Customer -->
+  <rect x="100" y="350" width="110" height="40" class="box"/>
+  <text x="155" y="375" class="entity">Customer</text>
+  
+  <!-- Order -->
+  <rect x="300" y="350" width="110" height="40" class="box"/>
+  <text x="355" y="375" class="entity">Order</text>
+  
+  <!-- LineItem -->
+  <rect x="500" y="350" width="110" height="40" class="box"/>
+  <text x="555" y="375" class="entity">LineItem</text>
+  
+  <!-- Product -->
+  <rect x="670" y="350" width="110" height="40" class="box"/>
+  <text x="725" y="375" class="entity">Product</text>
+  
+  <!-- LineItemId -->
+  <rect x="500" y="450" width="110" height="40" class="box"/>
+  <text x="555" y="475" class="entity">LineItemId</text>
+  
+  <!-- Category -->
+  <rect x="670" y="500" width="110" height="40" class="box"/>
+  <text x="725" y="525" class="entity">Category</text>
+  
+  <!-- Customer places Order relationship -->
+  <line x1="210" y1="370" x2="300" y2="370" class="connector"/>
+  <text x="255" y="360" class="relationship">places</text>
+  
+  <!-- Order contains LineItem relationship -->
+  <line x1="410" y1="370" x2="500" y2="370" class="connector"/>
+  <text x="455" y="360" class="relationship">contains</text>
+  
+  <!-- LineItem references Product relationship -->
+  <line x1="610" y1="370" x2="670" y2="370" class="connector"/>
+  <text x="640" y="360" class="relationship">references</text>
+  
+  <!-- LineItem has LineItemId relationship -->
+  <line x1="555" y1="390" x2="555" y2="450" class="connector"/>
+  <text x="570" y="420" class="relationship">has</text>
+  
+  <!-- Product belongs to Category relationship -->
+  <line x1="725" y1="390" x2="725" y2="500" class="connector"/>
+  <text x="700" y="445" class="relationship">belongs to</text>
+</svg>
