@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Order Services - Modernization Analysis</title>
+    <title>J2EE Monolith Modernization Analysis - Prototype</title>
     <style>
         /* Base styles */
         :root {
@@ -438,15 +438,15 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <h1>Customer Order Services Modernization</h1>
-                <p>Comprehensive Analysis and Migration Strategy</p>
+                <h1>J2EE Monolith Modernization Analysis - Prototype</h1>
+                <p>Comprehensive Analysis and Decomposition Strategy</p>
             </div>
         </div>
     </header>
 
     <div class="container">
         <div class="summary-box">
-            <p>This document provides a comprehensive analysis of the Customer Order Services monolithic application and outlines a strategic approach to modernize it into a microservices-based architecture. The analysis covers the current state assessment, proposed architecture, migration strategy using the Strangler Pattern with Anti-Corruption Layer, and testing recommendations.</p>
+            <p>This document provides a comprehensive analysis of the Customer Order Services monolithic application and outlines a strategic approach to modernize it into a microservices-based architecture. The analysis covers the current state assessment, design inputs for proposed architecture, migration strategy using the Strangler Pattern with Anti-Corruption Layer, and testing recommendations.</p>
         </div>
         
         <div class="tab-container">
@@ -2021,25 +2021,65 @@ CustomerOrderServicesProject (Parent POM)
                     <h4>ACL Communication Patterns</h4>
                     
                     <pre class="markdown-code"><code>```java
-// Example of implementing facades for microservice to monolith calls
-@RestController
-@RequestMapping("/api/legacy")
-public class LegacyOrderFacade {
-    @Autowired
-    private OrderService orderService; // Monolith service
-    @Autowired
-    private OrderTranslator translator;
+// Example of monolith using ACL to interact with microservices
+@Stateless
+public class ProductCatalogACL {
+    @Inject
+    private ProductServiceClient serviceClient;
+    @Inject
+    private ProductTranslator translator;
     
-    // Expose monolith functionality via REST API for microservices
-    @GetMapping("/orders/{customerId}")
-    public ResponseEntity<List<OrderDTO>> getCustomerOrders(@PathVariable("customerId") long customerId) {
-        List<Order> orders = orderService.getOrdersForCustomer(customerId);
-        
-        List<OrderDTO> dtos = orders.stream()
-            .map(translator::toDto)
-            .collect(Collectors.toList());
+    // Monolith's original business interface
+    public MonolithProduct findProductById(String legacyProductId) {
+        try {
+            // 1. Convert legacy ID format to microservice format
+            String microserviceId = translator.convertLegacyId(legacyProductId);
             
-        return ResponseEntity.ok(dtos);
+            // 2. Call microservice through dedicated client
+            MicroserviceProduct msProduct = serviceClient.getProduct(microserviceId);
+            
+            // 3. Translate response to monolith's domain model
+            MonolithProduct result = translator.toMonolithProduct(msProduct);
+            
+            // 4. Apply any legacy business rules or enrichment
+            result.setLegacyMetadata(fetchLegacyMetadata(legacyProductId));
+            
+            return result;
+            
+        } catch (ServiceException e) {
+            // 5. Convert microservice errors to monolith-compatible errors
+            throw new ProductNotFoundException("Product not found: " + legacyProductId);
+        }
+    }
+    
+    @Inject
+    private LegacyMetadataService metadataService;
+    
+    private ProductMetadata fetchLegacyMetadata(String legacyId) {
+        return metadataService.getMetadata(legacyId);
+    }
+    
+    // ACL method to search products using microservice
+    public List<Product> searchProducts(String query) {
+        try {
+            // Call microservice search endpoint
+            List<ProductDTO> dtos = restClient.get()
+                .uri(config.getProductServiceUrl() + "/products/search?q=" + query)
+                .retrieve()
+                .bodyToFlux(ProductDTO.class)
+                .collectList()
+                .block();
+                
+            // Convert all results to monolith model
+            return dtos.stream()
+                .map(translator::toMonolithProduct)
+                .collect(Collectors.toList());
+                
+        } catch (WebClientException e) {
+            log.error("Error searching products", e);
+            throw new ProductSearchException("Failed to search products: " + e.getMessage());
+        }
+    }
     }
 }
 
